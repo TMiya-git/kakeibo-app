@@ -113,6 +113,11 @@ const transactionNameInput = document.getElementById("transaction-name");
 const formMessage = document.getElementById("form-message");
 const historyList = document.getElementById("history-list");
 
+const submitButton = document.getElementById("submit-button");
+const cancelEditButton = document.getElementById(
+  "cancel-edit-button",
+);
+
 const transactionTypeInputs = document.querySelectorAll(
   'input[name="transaction-type"]',
 );
@@ -129,6 +134,7 @@ const incomeCategoryList = document.getElementById("income-category-list");
 
 let categories = loadCategories();
 let transactions = loadTransactions();
+let editingTransactionId = null;
 
 /**
  * 初期カテゴリを複製する。
@@ -285,6 +291,10 @@ function renderCategorySelect() {
   const transactionType = getSelectedTransactionType();
   const previousValue = categorySelect.value;
 
+  const editingTransaction = transactions.find((transaction) => {
+    return transaction.id === editingTransactionId;
+  });
+
   categorySelect.replaceChildren();
 
   const placeholderOption = document.createElement("option");
@@ -295,14 +305,22 @@ function renderCategorySelect() {
   categorySelect.appendChild(placeholderOption);
 
   const availableCategories = categories.filter((category) => {
-    return category.type === transactionType && category.active;
+    const isCurrentEditingCategory =
+      editingTransaction?.categoryId === category.id;
+
+    return (
+      category.type === transactionType &&
+      (category.active || isCurrentEditingCategory)
+    );
   });
 
   availableCategories.forEach((category) => {
     const option = document.createElement("option");
 
     option.value = category.id;
-    option.textContent = category.name;
+    option.textContent = category.active
+      ? category.name
+      : `${category.name}（非表示）`;
 
     categorySelect.appendChild(option);
   });
@@ -470,17 +488,46 @@ function createHistoryItem(transaction) {
   detailsElement.append(dateElement, categoryElement);
   mainArea.append(nameElement, detailsElement);
 
+  const rightArea = document.createElement("div");
+
+  rightArea.className = "history-right";
+
   const amountElement = document.createElement("p");
 
   amountElement.className = `history-amount ${transaction.type}`;
 
   if (transaction.type === "income") {
-    amountElement.textContent = `+${formatAmount(transaction.amount)}円`;
+    amountElement.textContent =
+      `+${formatAmount(transaction.amount)}円`;
   } else {
-    amountElement.textContent = `-${formatAmount(transaction.amount)}円`;
+    amountElement.textContent =
+      `-${formatAmount(transaction.amount)}円`;
   }
 
-  article.append(mainArea, amountElement);
+  const actionArea = document.createElement("div");
+
+  actionArea.className = "history-actions";
+
+  const editButton = document.createElement("button");
+
+  editButton.type = "button";
+  editButton.className = "history-action-button";
+  editButton.dataset.transactionAction = "edit";
+  editButton.dataset.transactionId = transaction.id;
+  editButton.textContent = "編集";
+
+  const deleteButton = document.createElement("button");
+
+  deleteButton.type = "button";
+  deleteButton.className = "history-action-button delete";
+  deleteButton.dataset.transactionAction = "delete";
+  deleteButton.dataset.transactionId = transaction.id;
+  deleteButton.textContent = "削除";
+
+  actionArea.append(editButton, deleteButton);
+  rightArea.append(amountElement, actionArea);
+
+  article.append(mainArea, rightArea);
 
   return article;
 }
@@ -534,8 +581,104 @@ function setToday() {
  */
 function resetTransactionForm() {
   transactionForm.reset();
+
+  editingTransactionId = null;
+
+  submitButton.textContent = "登録";
+  cancelEditButton.classList.add("hidden");
+
   setToday();
   renderCategorySelect();
+}
+
+function startEditingTransaction(transactionId) {
+  const transaction = transactions.find((item) => {
+    return item.id === transactionId;
+  });
+
+  if (!transaction) {
+    window.alert("編集する記録が見つかりません。");
+    return;
+  }
+
+  editingTransactionId = transaction.id;
+
+  amountInput.value = transaction.amount;
+  dateInput.value = transaction.date;
+  transactionNameInput.value = transaction.name;
+
+  transactionTypeInputs.forEach((input) => {
+    input.checked = input.value === transaction.type;
+  });
+
+  renderCategorySelect();
+  categorySelect.value = transaction.categoryId;
+
+  submitButton.textContent = "更新";
+  cancelEditButton.classList.remove("hidden");
+
+  formMessage.textContent =
+    "内容を修正して「更新」を押してください。";
+
+  showPage("input-page");
+  amountInput.focus();
+}
+
+function deleteTransaction(transactionId) {
+  const transaction = transactions.find((item) => {
+    return item.id === transactionId;
+  });
+
+  if (!transaction) {
+    window.alert("削除する記録が見つかりません。");
+    return;
+  }
+
+  const categoryName = getCategoryName(transaction.categoryId);
+  const displayName = transaction.name || categoryName;
+
+  const shouldDelete = window.confirm(
+    `${displayName}（${formatAmount(
+      transaction.amount,
+    )}円）を削除しますか？`,
+  );
+
+  if (!shouldDelete) {
+    return;
+  }
+
+  transactions = transactions.filter((item) => {
+    return item.id !== transactionId;
+  });
+
+  saveTransactions();
+  renderHistory();
+
+  if (editingTransactionId === transactionId) {
+    resetTransactionForm();
+    formMessage.textContent = "";
+  }
+}
+
+function handleHistoryAction(event) {
+  const actionButton = event.target.closest(
+    "button[data-transaction-action]",
+  );
+
+  if (!actionButton) {
+    return;
+  }
+
+  const transactionId = actionButton.dataset.transactionId;
+  const action = actionButton.dataset.transactionAction;
+
+  if (action === "edit") {
+    startEditingTransaction(transactionId);
+  }
+
+  if (action === "delete") {
+    deleteTransaction(transactionId);
+  }
 }
 
 /**
@@ -673,6 +816,13 @@ categoryAddForm.addEventListener("submit", (event) => {
 expenseCategoryList.addEventListener("click", handleCategoryAction);
 incomeCategoryList.addEventListener("click", handleCategoryAction);
 
+historyList.addEventListener("click", handleHistoryAction);
+
+cancelEditButton.addEventListener("click", () => {
+  resetTransactionForm();
+  formMessage.textContent = "編集をキャンセルしました。";
+});
+
 /**
  * 収支を登録する。
  */
@@ -688,12 +838,14 @@ transactionForm.addEventListener("submit", (event) => {
   const name = transactionNameInput.value.trim();
 
   if (!Number.isFinite(amount) || amount <= 0) {
-    formMessage.textContent = "0円より大きい金額を入力してください。";
+    formMessage.textContent =
+      "0円より大きい金額を入力してください。";
     return;
   }
 
   if (!Number.isInteger(amount)) {
-    formMessage.textContent = "金額は整数で入力してください。";
+    formMessage.textContent =
+      "金額は整数で入力してください。";
     return;
   }
 
@@ -703,22 +855,61 @@ transactionForm.addEventListener("submit", (event) => {
   }
 
   if (!categoryId) {
-    formMessage.textContent = "カテゴリを選択してください。";
+    formMessage.textContent =
+      "カテゴリを選択してください。";
     return;
   }
 
   const selectedCategory = categories.find((category) => {
     return (
       category.id === categoryId &&
-      category.type === type &&
-      category.active
+      category.type === type
     );
   });
 
-  if (!selectedCategory) {
+  if (
+    !selectedCategory ||
+    (!selectedCategory.active &&
+      editingTransactionId === null)
+  ) {
     formMessage.textContent =
       "選択したカテゴリを確認してください。";
+
     renderCategorySelect();
+    return;
+  }
+
+  if (editingTransactionId !== null) {
+    const transactionIndex = transactions.findIndex(
+      (transaction) => {
+        return transaction.id === editingTransactionId;
+      },
+    );
+
+    if (transactionIndex === -1) {
+      formMessage.textContent =
+        "更新する記録が見つかりません。";
+      return;
+    }
+
+    const originalTransaction =
+      transactions[transactionIndex];
+
+    transactions[transactionIndex] = {
+      ...originalTransaction,
+      date,
+      type,
+      categoryId,
+      name,
+      amount,
+      updatedAt: new Date().toISOString(),
+    };
+
+    saveTransactions();
+    renderHistory();
+    resetTransactionForm();
+
+    formMessage.textContent = "更新しました。";
     return;
   }
 

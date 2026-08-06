@@ -1,8 +1,11 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ja">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
 
     <title>家計簿</title>
 
@@ -11,14 +14,254 @@
   </head>
 
   <body>
-    <main class="container">
+    <header class="app-header">
       <h1>家計簿</h1>
+    </header>
 
-      <p>家計簿Webアプリの試作画面です。</p>
+    <main class="app-main">
+      <!-- 入力画面 -->
+      <section id="input-page" class="page active">
+        <h2>収支を入力</h2>
 
-      <button id="test-button" type="button">動作確認</button>
+        <form id="transaction-form" class="card">
+          <div class="form-group">
+            <label for="amount">金額</label>
+            <div class="amount-input">
+              <input
+                id="amount"
+                name="amount"
+                type="number"
+                min="0"
+                step="1"
+                inputmode="numeric"
+                placeholder="例：850"
+                required
+              />
+              <span>円</span>
+            </div>
+          </div>
 
-      <p id="message"></p>
+          <div class="form-group">
+            <label for="date">日付</label>
+            <input id="date" name="date" type="date" required />
+          </div>
+
+          <div class="form-group">
+            <span class="form-label">収入・支出</span>
+
+            <div class="type-selector">
+              <label>
+                <input
+                  type="radio"
+                  name="transaction-type"
+                  value="expense"
+                  checked
+                />
+                <span>支出</span>
+              </label>
+
+              <label>
+                <input
+                  type="radio"
+                  name="transaction-type"
+                  value="income"
+                />
+                <span>収入</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="category">カテゴリ</label>
+
+            <select id="category" name="category" required>
+                <option value="">選択してください</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="transaction-name">名前</label>
+            <input
+              id="transaction-name"
+              name="transaction-name"
+              type="text"
+              placeholder="例：昼食"
+              maxlength="50"
+            />
+          </div>
+
+          <button class="primary-button" type="submit">登録</button>
+
+          <p id="form-message" class="form-message" aria-live="polite"></p>
+        </form>
+      </section>
+
+      <!-- 履歴画面 -->
+      <section id="history-page" class="page">
+        <h2>履歴</h2>
+
+        <div class="card empty-card">
+          <p>登録された収支がここに表示されます。</p>
+        </div>
+      </section>
+
+      <!-- 集計画面 -->
+      <section id="summary-page" class="page">
+        <h2>集計</h2>
+
+        <div class="summary-grid">
+          <article class="summary-card">
+            <span>今月の収入</span>
+            <strong>0円</strong>
+          </article>
+
+          <article class="summary-card">
+            <span>今月の支出</span>
+            <strong>0円</strong>
+          </article>
+
+          <article class="summary-card">
+            <span>今月の収支</span>
+            <strong>0円</strong>
+          </article>
+        </div>
+
+        <div class="card empty-card">
+          <p>円グラフや月別グラフをここに表示します。</p>
+        </div>
+      </section>
+
+      <!-- 固定収支画面 -->
+      <section id="fixed-page" class="page">
+        <h2>固定収支</h2>
+
+        <div class="card empty-card">
+          <p>家賃、奨学金、通信費などを登録する画面です。</p>
+        </div>
+
+        <button class="primary-button" type="button">
+          固定収支を追加
+        </button>
+      </section>
+
+      <!-- 設定画面 -->
+      <section id="settings-page" class="page">
+        <h2>設定</h2>
+
+        <section class="card category-manager">
+          <h3>カテゴリ管理</h3>
+
+          <form id="category-add-form" class="category-add-form">
+            <div class="form-group">
+              <label for="category-type">収入・支出</label>
+
+              <select id="category-type" name="category-type" required>
+                <option value="expense">支出</option>
+                <option value="income">収入</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="category-name">カテゴリ名</label>
+
+              <input
+                id="category-name"
+                name="category-name"
+                type="text"
+                maxlength="30"
+                placeholder="例：外食"
+                required
+              />
+            </div>
+
+            <button class="primary-button" type="submit">
+              カテゴリを追加
+            </button>
+
+            <p
+              id="category-message"
+              class="form-message"
+              aria-live="polite"
+            ></p>
+          </form>
+
+          <div class="category-section">
+            <h4>支出カテゴリ</h4>
+
+            <ul
+              id="expense-category-list"
+              class="category-list"
+            ></ul>
+          </div>
+
+          <div class="category-section">
+            <h4>収入カテゴリ</h4>
+
+            <ul
+              id="income-category-list"
+              class="category-list"
+            ></ul>
+          </div>
+        </section>
+
+        <div class="card settings-list backup-settings">
+          <button type="button" disabled>JSONバックアップ</button>
+          <button type="button" disabled>バックアップから復元</button>
+          <button type="button" disabled>CSV出力</button>
+        </div>
+
+        <p class="note">
+          バックアップ機能は後の段階で追加します。
+        </p>
+      </section>
     </main>
+
+    <!-- 下部タブ -->
+    <nav class="bottom-navigation" aria-label="メインメニュー">
+      <button
+        class="nav-button active"
+        type="button"
+        data-page="input-page"
+      >
+        <span class="nav-icon">＋</span>
+        <span>入力</span>
+      </button>
+
+      <button
+        class="nav-button"
+        type="button"
+        data-page="history-page"
+      >
+        <span class="nav-icon">≡</span>
+        <span>履歴</span>
+      </button>
+
+      <button
+        class="nav-button"
+        type="button"
+        data-page="summary-page"
+      >
+        <span class="nav-icon">◯</span>
+        <span>集計</span>
+      </button>
+
+      <button
+        class="nav-button"
+        type="button"
+        data-page="fixed-page"
+      >
+        <span class="nav-icon">↻</span>
+        <span>固定収支</span>
+      </button>
+
+      <button
+        class="nav-button"
+        type="button"
+        data-page="settings-page"
+      >
+        <span class="nav-icon">⚙</span>
+        <span>設定</span>
+      </button>
+    </nav>
   </body>
 </html>

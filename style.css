@@ -1,27 +1,382 @@
+:root {
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #1f2937;
+  background-color: #f3f4f6;
+  font-synthesis: none;
+}
+
 * {
   box-sizing: border-box;
 }
 
-body {
-  margin: 0;
-  font-family:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  background: #f5f5f5;
-  color: #222;
+html {
+  background-color: #f3f4f6;
 }
 
-.container {
-  width: min(100% - 32px, 600px);
-  margin: 0 auto;
-  padding: 32px 0;
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background-color: #f3f4f6;
+}
+
+button,
+input,
+select {
+  font: inherit;
 }
 
 button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  padding:
+    max(14px, env(safe-area-inset-top))
+    20px
+    14px;
+  border-bottom: 1px solid #e5e7eb;
+  background-color: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(12px);
+}
+
+.app-header h1 {
+  width: min(100%, 600px);
+  margin: 0 auto;
+  font-size: 22px;
+}
+
+.app-main {
+  width: min(100% - 32px, 600px);
+  margin: 0 auto;
+  padding: 24px 0 calc(100px + env(safe-area-inset-bottom));
+}
+
+.page {
+  display: none;
+}
+
+.page.active {
+  display: block;
+}
+
+.page h2 {
+  margin: 0 0 18px;
+  font-size: 20px;
+}
+
+.card {
+  padding: 20px;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  background-color: #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label,
+.form-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+input,
+select {
   width: 100%;
   min-height: 48px;
-  padding: 12px;
-  border: none;
+  padding: 11px 12px;
+  border: 1px solid #d1d5db;
   border-radius: 10px;
+  outline: none;
+  background-color: #ffffff;
+  color: #111827;
   font-size: 16px;
+}
+
+input:focus,
+select:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.amount-input {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.amount-input input {
+  flex: 1;
+}
+
+.amount-input span {
+  flex-shrink: 0;
+}
+
+.type-selector {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.type-selector label {
+  margin: 0;
   cursor: pointer;
+}
+
+.type-selector input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.type-selector span {
+  display: flex;
+  min-height: 46px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  background-color: #ffffff;
+  font-weight: 600;
+}
+
+.type-selector input:checked + span {
+  border-color: #2563eb;
+  background-color: #eff6ff;
+  color: #1d4ed8;
+}
+
+.primary-button {
+  width: 100%;
+  min-height: 50px;
+  padding: 12px 16px;
+  border: 0;
+  border-radius: 12px;
+  background-color: #2563eb;
+  color: #ffffff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.primary-button:active {
+  transform: scale(0.99);
+}
+
+.form-message {
+  min-height: 20px;
+  margin: 14px 0 0;
+  color: #2563eb;
+  font-size: 14px;
+  text-align: center;
+}
+
+.empty-card {
+  color: #6b7280;
+  text-align: center;
+}
+
+.empty-card p {
+  margin: 8px 0;
+}
+
+.summary-grid {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.summary-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  background-color: #ffffff;
+}
+
+.summary-card span {
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.summary-card strong {
+  font-size: 20px;
+}
+
+.settings-list {
+  display: grid;
+  gap: 10px;
+}
+
+.settings-list button {
+  min-height: 48px;
+  padding: 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  background-color: #f9fafb;
+  text-align: left;
+}
+
+.note {
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.bottom-navigation {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 20;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  padding:
+    8px
+    max(6px, env(safe-area-inset-right))
+    max(8px, env(safe-area-inset-bottom))
+    max(6px, env(safe-area-inset-left));
+  border-top: 1px solid #e5e7eb;
+  background-color: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(14px);
+}
+
+.nav-button {
+  display: flex;
+  min-width: 0;
+  min-height: 54px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 4px 2px;
+  border: 0;
+  background: transparent;
+  color: #6b7280;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.nav-button.active {
+  color: #2563eb;
+  font-weight: 700;
+}
+
+.nav-icon {
+  font-size: 20px;
+  line-height: 1;
+}
+
+@media (min-width: 600px) {
+  .summary-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .summary-card {
+    display: block;
+  }
+
+  .summary-card strong {
+    display: block;
+    margin-top: 8px;
+  }
+}
+
+.category-manager {
+  margin-bottom: 20px;
+}
+
+.category-manager h3 {
+  margin: 0 0 20px;
+  font-size: 18px;
+}
+
+.category-add-form {
+  padding-bottom: 22px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.category-section {
+  margin-top: 24px;
+}
+
+.category-section h4 {
+  margin: 0 0 12px;
+  font-size: 15px;
+}
+
+.category-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.category-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 52px;
+  padding: 10px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background-color: #f9fafb;
+}
+
+.category-item.inactive {
+  opacity: 0.55;
+}
+
+.category-name {
+  min-width: 0;
+  flex: 1;
+  overflow-wrap: anywhere;
+  font-weight: 600;
+}
+
+.category-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 6px;
+}
+
+.category-action-button {
+  min-height: 36px;
+  padding: 6px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background-color: #ffffff;
+  color: #374151;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.category-action-button:active {
+  background-color: #f3f4f6;
+}
+
+.category-empty-message {
+  margin: 0;
+  padding: 14px;
+  border-radius: 10px;
+  background-color: #f9fafb;
+  color: #6b7280;
+  font-size: 14px;
+  text-align: center;
+}
+
+.backup-settings {
+  margin-top: 20px;
 }

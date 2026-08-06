@@ -380,3 +380,71 @@ select:focus {
 .backup-settings {
   margin-top: 20px;
 }
+
+.history-list {
+  display: grid;
+  gap: 12px;
+}
+
+.history-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  background-color: #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.history-main {
+  min-width: 0;
+  flex: 1;
+}
+
+.history-name {
+  margin: 0 0 5px;
+  overflow-wrap: anywhere;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.history-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 10px;
+  margin: 0;
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.history-category {
+  font-weight: 600;
+}
+
+.history-amount {
+  flex-shrink: 0;
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.history-amount.expense {
+  color: #dc2626;
+}
+
+.history-amount.income {
+  color: #15803d;
+}
+
+.history-empty-message {
+  margin: 0;
+  padding: 30px 20px;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  background-color: #ffffff;
+  color: #6b7280;
+  text-align: center;
+}

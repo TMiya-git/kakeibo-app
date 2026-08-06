@@ -1,6 +1,7 @@
 "use strict";
 
 const CATEGORY_STORAGE_KEY = "kakeiboCategories";
+const TRANSACTION_STORAGE_KEY = "kakeiboTransactions";
 
 const defaultCategories = [
   {
@@ -104,35 +105,30 @@ const defaultCategories = [
 const navButtons = document.querySelectorAll(".nav-button");
 const pages = document.querySelectorAll(".page");
 
-const transactionForm = document.getElementById(
-  "transaction-form",
-);
-const formMessage = document.getElementById("form-message");
+const transactionForm = document.getElementById("transaction-form");
+const amountInput = document.getElementById("amount");
 const dateInput = document.getElementById("date");
 const categorySelect = document.getElementById("category");
+const transactionNameInput = document.getElementById("transaction-name");
+const formMessage = document.getElementById("form-message");
+const historyList = document.getElementById("history-list");
 
 const transactionTypeInputs = document.querySelectorAll(
   'input[name="transaction-type"]',
 );
 
-const categoryAddForm = document.getElementById(
-  "category-add-form",
-);
-const categoryTypeInput =
-  document.getElementById("category-type");
-const categoryNameInput =
-  document.getElementById("category-name");
-const categoryMessage =
-  document.getElementById("category-message");
+const categoryAddForm = document.getElementById("category-add-form");
+const categoryTypeInput = document.getElementById("category-type");
+const categoryNameInput = document.getElementById("category-name");
+const categoryMessage = document.getElementById("category-message");
 
 const expenseCategoryList = document.getElementById(
   "expense-category-list",
 );
-const incomeCategoryList = document.getElementById(
-  "income-category-list",
-);
+const incomeCategoryList = document.getElementById("income-category-list");
 
 let categories = loadCategories();
+let transactions = loadTransactions();
 
 /**
  * 初期カテゴリを複製する。
@@ -147,9 +143,7 @@ function getDefaultCategories() {
  * localStorageからカテゴリを読み込む。
  */
 function loadCategories() {
-  const savedCategories = localStorage.getItem(
-    CATEGORY_STORAGE_KEY,
-  );
+  const savedCategories = localStorage.getItem(CATEGORY_STORAGE_KEY);
 
   if (!savedCategories) {
     return getDefaultCategories();
@@ -167,8 +161,7 @@ function loadCategories() {
         return (
           typeof category.id === "string" &&
           typeof category.name === "string" &&
-          (category.type === "expense" ||
-            category.type === "income")
+          (category.type === "expense" || category.type === "income")
         );
       })
       .map((category) => ({
@@ -178,11 +171,7 @@ function loadCategories() {
         active: category.active !== false,
       }));
   } catch (error) {
-    console.error(
-      "カテゴリの読み込みに失敗しました。",
-      error,
-    );
-
+    console.error("カテゴリの読み込みに失敗しました。", error);
     return getDefaultCategories();
   }
 }
@@ -191,10 +180,82 @@ function loadCategories() {
  * カテゴリをlocalStorageへ保存する。
  */
 function saveCategories() {
+  localStorage.setItem(CATEGORY_STORAGE_KEY, JSON.stringify(categories));
+}
+
+/**
+ * localStorageから収支記録を読み込む。
+ */
+function loadTransactions() {
+  const savedTransactions = localStorage.getItem(TRANSACTION_STORAGE_KEY);
+
+  if (!savedTransactions) {
+    return [];
+  }
+
+  try {
+    const parsedTransactions = JSON.parse(savedTransactions);
+
+    if (!Array.isArray(parsedTransactions)) {
+      return [];
+    }
+
+    return parsedTransactions
+      .filter((transaction) => {
+        return (
+          typeof transaction.id === "string" &&
+          typeof transaction.date === "string" &&
+          (transaction.type === "expense" ||
+            transaction.type === "income") &&
+          typeof transaction.categoryId === "string" &&
+          typeof transaction.amount === "number" &&
+          Number.isFinite(transaction.amount) &&
+          transaction.amount > 0
+        );
+      })
+      .map((transaction) => ({
+        id: transaction.id,
+        date: transaction.date,
+        type: transaction.type,
+        categoryId: transaction.categoryId,
+        name:
+          typeof transaction.name === "string" ? transaction.name : "",
+        amount: transaction.amount,
+        createdAt:
+          typeof transaction.createdAt === "string"
+            ? transaction.createdAt
+            : new Date().toISOString(),
+      }));
+  } catch (error) {
+    console.error("収支記録の読み込みに失敗しました。", error);
+    return [];
+  }
+}
+
+/**
+ * 収支記録をlocalStorageへ保存する。
+ */
+function saveTransactions() {
   localStorage.setItem(
-    CATEGORY_STORAGE_KEY,
-    JSON.stringify(categories),
+    TRANSACTION_STORAGE_KEY,
+    JSON.stringify(transactions),
   );
+}
+
+/**
+ * 一意なIDを作成する。
+ */
+function createId(prefix) {
+  if (
+    typeof crypto !== "undefined" &&
+    typeof crypto.randomUUID === "function"
+  ) {
+    return crypto.randomUUID();
+  }
+
+  return `${prefix}-${Date.now()}-${Math.random()
+    .toString(16)
+    .slice(2)}`;
 }
 
 /**
@@ -209,6 +270,15 @@ function getSelectedTransactionType() {
 }
 
 /**
+ * カテゴリIDからカテゴリ名を取得する。
+ */
+function getCategoryName(categoryId) {
+  const category = categories.find((item) => item.id === categoryId);
+
+  return category?.name ?? "不明なカテゴリ";
+}
+
+/**
  * 入力画面のカテゴリ選択肢を更新する。
  */
 function renderCategorySelect() {
@@ -217,22 +287,16 @@ function renderCategorySelect() {
 
   categorySelect.replaceChildren();
 
-  const placeholderOption =
-    document.createElement("option");
+  const placeholderOption = document.createElement("option");
 
   placeholderOption.value = "";
   placeholderOption.textContent = "選択してください";
 
   categorySelect.appendChild(placeholderOption);
 
-  const availableCategories = categories.filter(
-    (category) => {
-      return (
-        category.type === transactionType &&
-        category.active
-      );
-    },
-  );
+  const availableCategories = categories.filter((category) => {
+    return category.type === transactionType && category.active;
+  });
 
   availableCategories.forEach((category) => {
     const option = document.createElement("option");
@@ -243,10 +307,11 @@ function renderCategorySelect() {
     categorySelect.appendChild(option);
   });
 
-  const previousCategoryStillExists =
-    availableCategories.some((category) => {
+  const previousCategoryStillExists = availableCategories.some(
+    (category) => {
       return category.id === previousValue;
-    });
+    },
+  );
 
   if (previousCategoryStillExists) {
     categorySelect.value = previousValue;
@@ -288,9 +353,7 @@ function createCategoryItem(category) {
   activeButton.className = "category-action-button";
   activeButton.dataset.action = "toggle";
   activeButton.dataset.categoryId = category.id;
-  activeButton.textContent = category.active
-    ? "非表示"
-    : "再表示";
+  activeButton.textContent = category.active ? "非表示" : "再表示";
 
   actionArea.append(renameButton, activeButton);
   listItem.append(categoryName, actionArea);
@@ -304,25 +367,22 @@ function createCategoryItem(category) {
 function renderCategoryList(type, listElement) {
   listElement.replaceChildren();
 
-  const filteredCategories = categories.filter(
-    (category) => category.type === type,
-  );
+  const filteredCategories = categories.filter((category) => {
+    return category.type === type;
+  });
 
   if (filteredCategories.length === 0) {
     const emptyMessage = document.createElement("li");
 
     emptyMessage.className = "category-empty-message";
-    emptyMessage.textContent =
-      "カテゴリが登録されていません。";
+    emptyMessage.textContent = "カテゴリが登録されていません。";
 
     listElement.appendChild(emptyMessage);
     return;
   }
 
   filteredCategories.forEach((category) => {
-    listElement.appendChild(
-      createCategoryItem(category),
-    );
+    listElement.appendChild(createCategoryItem(category));
   });
 }
 
@@ -330,16 +390,12 @@ function renderCategoryList(type, listElement) {
  * 設定画面のカテゴリ一覧を更新する。
  */
 function renderCategorySettings() {
-  renderCategoryList(
-    "expense",
-    expenseCategoryList,
-  );
-
+  renderCategoryList("expense", expenseCategoryList);
   renderCategoryList("income", incomeCategoryList);
 }
 
 /**
- * カテゴリ関連の画面をすべて更新する。
+ * カテゴリ関連の画面を更新する。
  */
 function renderCategories() {
   renderCategorySelect();
@@ -360,37 +416,126 @@ function categoryNameExists(name, type, ignoredId = null) {
 }
 
 /**
- * カテゴリ用の一意なIDを作成する。
+ * YYYY-MM-DDを日本語の日付へ変換する。
  */
-function createCategoryId() {
-  if (
-    typeof crypto !== "undefined" &&
-    typeof crypto.randomUUID === "function"
-  ) {
-    return crypto.randomUUID();
+function formatDate(dateString) {
+  const [year, month, day] = dateString.split("-");
+
+  if (!year || !month || !day) {
+    return dateString;
   }
 
-  return `category-${Date.now()}-${Math.random()
-    .toString(16)
-    .slice(2)}`;
+  return `${Number(year)}年${Number(month)}月${Number(day)}日`;
 }
 
 /**
- * 初期表示の日付を今日にする。
+ * 金額を3桁区切りにする。
+ */
+function formatAmount(amount) {
+  return new Intl.NumberFormat("ja-JP").format(amount);
+}
+
+/**
+ * 履歴の1件分を作成する。
+ */
+function createHistoryItem(transaction) {
+  const article = document.createElement("article");
+
+  article.className = "history-item";
+
+  const mainArea = document.createElement("div");
+
+  mainArea.className = "history-main";
+
+  const categoryName = getCategoryName(transaction.categoryId);
+
+  const nameElement = document.createElement("p");
+
+  nameElement.className = "history-name";
+  nameElement.textContent = transaction.name || categoryName;
+
+  const detailsElement = document.createElement("p");
+
+  detailsElement.className = "history-details";
+
+  const dateElement = document.createElement("span");
+
+  dateElement.textContent = formatDate(transaction.date);
+
+  const categoryElement = document.createElement("span");
+
+  categoryElement.className = "history-category";
+  categoryElement.textContent = categoryName;
+
+  detailsElement.append(dateElement, categoryElement);
+  mainArea.append(nameElement, detailsElement);
+
+  const amountElement = document.createElement("p");
+
+  amountElement.className = `history-amount ${transaction.type}`;
+
+  if (transaction.type === "income") {
+    amountElement.textContent = `+${formatAmount(transaction.amount)}円`;
+  } else {
+    amountElement.textContent = `-${formatAmount(transaction.amount)}円`;
+  }
+
+  article.append(mainArea, amountElement);
+
+  return article;
+}
+
+/**
+ * 履歴画面を更新する。
+ */
+function renderHistory() {
+  historyList.replaceChildren();
+
+  if (transactions.length === 0) {
+    const emptyMessage = document.createElement("p");
+
+    emptyMessage.className = "history-empty-message";
+    emptyMessage.textContent = "まだ収支が登録されていません。";
+
+    historyList.appendChild(emptyMessage);
+    return;
+  }
+
+  const sortedTransactions = [...transactions].sort((first, second) => {
+    const dateComparison = second.date.localeCompare(first.date);
+
+    if (dateComparison !== 0) {
+      return dateComparison;
+    }
+
+    return second.createdAt.localeCompare(first.createdAt);
+  });
+
+  sortedTransactions.forEach((transaction) => {
+    historyList.appendChild(createHistoryItem(transaction));
+  });
+}
+
+/**
+ * 今日の日付を日付欄へ設定する。
  */
 function setToday() {
   const today = new Date();
 
   const year = today.getFullYear();
-  const month = String(
-    today.getMonth() + 1,
-  ).padStart(2, "0");
-  const day = String(today.getDate()).padStart(
-    2,
-    "0",
-  );
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
 
   dateInput.value = `${year}-${month}-${day}`;
+}
+
+/**
+ * 入力フォームを登録後の状態に戻す。
+ */
+function resetTransactionForm() {
+  transactionForm.reset();
+  setToday();
+  renderCategorySelect();
 }
 
 /**
@@ -398,10 +543,7 @@ function setToday() {
  */
 function showPage(pageId) {
   pages.forEach((page) => {
-    page.classList.toggle(
-      "active",
-      page.id === pageId,
-    );
+    page.classList.toggle("active", page.id === pageId);
   });
 
   navButtons.forEach((button) => {
@@ -417,21 +559,20 @@ function showPage(pageId) {
 }
 
 /**
- * 名称変更または表示状態変更を処理する。
+ * カテゴリの名称変更または表示状態変更を処理する。
  */
 function handleCategoryAction(event) {
-  const actionButton = event.target.closest(
-    "button[data-action]",
-  );
+  const actionButton = event.target.closest("button[data-action]");
 
   if (!actionButton) {
     return;
   }
 
   const categoryId = actionButton.dataset.categoryId;
-  const category = categories.find(
-    (item) => item.id === categoryId,
-  );
+
+  const category = categories.find((item) => {
+    return item.id === categoryId;
+  });
 
   if (!category) {
     return;
@@ -450,22 +591,12 @@ function handleCategoryAction(event) {
     const trimmedName = newName.trim();
 
     if (!trimmedName) {
-      window.alert(
-        "カテゴリ名を入力してください。",
-      );
+      window.alert("カテゴリ名を入力してください。");
       return;
     }
 
-    if (
-      categoryNameExists(
-        trimmedName,
-        category.type,
-        category.id,
-      )
-    ) {
-      window.alert(
-        "同じ名前のカテゴリがすでにあります。",
-      );
+    if (categoryNameExists(trimmedName, category.type, category.id)) {
+      window.alert("同じ名前のカテゴリがすでにあります。");
       return;
     }
 
@@ -478,10 +609,11 @@ function handleCategoryAction(event) {
 
   saveCategories();
   renderCategories();
+  renderHistory();
 }
 
 /**
- * 下部タブの処理。
+ * 下部タブを押したときの処理。
  */
 navButtons.forEach((button) => {
   button.addEventListener("click", () => {
@@ -490,7 +622,7 @@ navButtons.forEach((button) => {
 });
 
 /**
- * 支出・収入が変わったらカテゴリ選択肢も変える。
+ * 支出・収入を変更したとき、カテゴリ選択肢も変更する。
  */
 transactionTypeInputs.forEach((input) => {
   input.addEventListener("change", () => {
@@ -500,72 +632,118 @@ transactionTypeInputs.forEach((input) => {
 });
 
 /**
- * カテゴリ追加処理。
+ * カテゴリを追加する。
  */
-categoryAddForm.addEventListener(
-  "submit",
-  (event) => {
-    event.preventDefault();
+categoryAddForm.addEventListener("submit", (event) => {
+  event.preventDefault();
 
-    const name = categoryNameInput.value.trim();
-    const type = categoryTypeInput.value;
+  const name = categoryNameInput.value.trim();
+  const type = categoryTypeInput.value;
 
-    categoryMessage.textContent = "";
+  categoryMessage.textContent = "";
 
-    if (!name) {
-      categoryMessage.textContent =
-        "カテゴリ名を入力してください。";
-      return;
-    }
+  if (!name) {
+    categoryMessage.textContent = "カテゴリ名を入力してください。";
+    return;
+  }
 
-    if (categoryNameExists(name, type)) {
-      categoryMessage.textContent =
-        "同じ名前のカテゴリがすでにあります。";
-      return;
-    }
-
-    categories.push({
-      id: createCategoryId(),
-      name,
-      type,
-      active: true,
-    });
-
-    saveCategories();
-    renderCategories();
-
-    categoryNameInput.value = "";
-
+  if (categoryNameExists(name, type)) {
     categoryMessage.textContent =
-      "カテゴリを追加しました。";
-  },
-);
+      "同じ名前のカテゴリがすでにあります。";
+    return;
+  }
+
+  categories.push({
+    id: createId("category"),
+    name,
+    type,
+    active: true,
+  });
+
+  saveCategories();
+  renderCategories();
+
+  categoryNameInput.value = "";
+  categoryMessage.textContent = "カテゴリを追加しました。";
+});
 
 /**
  * カテゴリ一覧のボタン処理。
  */
-expenseCategoryList.addEventListener(
-  "click",
-  handleCategoryAction,
-);
-
-incomeCategoryList.addEventListener(
-  "click",
-  handleCategoryAction,
-);
+expenseCategoryList.addEventListener("click", handleCategoryAction);
+incomeCategoryList.addEventListener("click", handleCategoryAction);
 
 /**
- * 登録ボタンの仮処理。
+ * 収支を登録する。
  */
-transactionForm.addEventListener(
-  "submit",
-  (event) => {
-    event.preventDefault();
+transactionForm.addEventListener("submit", (event) => {
+  event.preventDefault();
 
+  formMessage.textContent = "";
+
+  const amount = Number(amountInput.value);
+  const date = dateInput.value;
+  const type = getSelectedTransactionType();
+  const categoryId = categorySelect.value;
+  const name = transactionNameInput.value.trim();
+
+  if (!Number.isFinite(amount) || amount <= 0) {
+    formMessage.textContent = "0円より大きい金額を入力してください。";
+    return;
+  }
+
+  if (!Number.isInteger(amount)) {
+    formMessage.textContent = "金額は整数で入力してください。";
+    return;
+  }
+
+  if (!date) {
+    formMessage.textContent = "日付を選択してください。";
+    return;
+  }
+
+  if (!categoryId) {
+    formMessage.textContent = "カテゴリを選択してください。";
+    return;
+  }
+
+  const selectedCategory = categories.find((category) => {
+    return (
+      category.id === categoryId &&
+      category.type === type &&
+      category.active
+    );
+  });
+
+  if (!selectedCategory) {
     formMessage.textContent =
-      "入力内容を確認しました。保存機能は次の段階で追加します。";
-  },
-);
+      "選択したカテゴリを確認してください。";
+    renderCategorySelect();
+    return;
+  }
 
+  const transaction = {
+    id: createId("transaction"),
+    date,
+    type,
+    categoryId,
+    name,
+    amount,
+    createdAt: new Date().toISOString(),
+  };
+
+  transactions.push(transaction);
+
+  saveTransactions();
+  renderHistory();
+  resetTransactionForm();
+
+  formMessage.textContent = "登録しました。";
+});
+
+/**
+ * 初期表示。
+ */
 setToday();
 renderCategories();
+renderHistory();

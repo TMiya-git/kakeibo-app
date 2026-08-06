@@ -3,4 +3,4 @@ Personal household account web application
 
 ## 家計簿Webアプリ
 
-[家計簿を開く](https://ユーザー名.github.io/kakeibo-app/)
+[家計簿を開く](https://tmiya-git.github.io/kakeibo-app/)

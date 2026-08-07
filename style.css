@@ -630,8 +630,8 @@ input::placeholder {
 
 .calendar-day {
   min-width: 0;
-  min-height: 72px;
-  padding: 5px 3px;
+  min-height: 60px;
+  padding: 4px 3px;
   border-right: 1px solid #aaaaaa;
   border-bottom: 1px solid #aaaaaa;
 }
@@ -656,7 +656,7 @@ input::placeholder {
 }
 
 .calendar-day-number {
-  margin-bottom: 4px;
+  margin-bottom: 2px;
   font-size: 12px;
   font-weight: 700;
 }

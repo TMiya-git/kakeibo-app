@@ -184,6 +184,15 @@ const fixedSubmitButton = document.getElementById("fixed-submit-button");
 const fixedCancelButton = document.getElementById("fixed-cancel-button");
 const fixedMessage = document.getElementById("fixed-message");
 const fixedList = document.getElementById("fixed-list");
+const fixedGenerationMonthInput = document.getElementById(
+  "fixed-generation-month",
+);
+const fixedGenerationButton = document.getElementById(
+  "fixed-generation-button",
+);
+const fixedGenerationMessage = document.getElementById(
+  "fixed-generation-message",
+);
 const fixedTypeInputs = document.querySelectorAll(
   'input[name="fixed-type"]',
 );
@@ -291,6 +300,13 @@ function loadTransactions() {
           typeof transaction.createdAt === "string"
             ? transaction.createdAt
             : new Date().toISOString(),
+        ...(typeof transaction.fixedTransactionId === "string" &&
+          isValidMonthString(transaction.fixedMonth)
+          ? {
+              fixedTransactionId: transaction.fixedTransactionId,
+              fixedMonth: transaction.fixedMonth,
+            }
+          : {}),
       }));
   } catch (error) {
     console.error("収支記録の読み込みに失敗しました。", error);
@@ -547,6 +563,13 @@ function validateBackup(data) {
   const transactionIds = new Set();
   const restoredTransactions = data.transactions.map((transaction) => {
     const relatedCategory = categoriesById.get(transaction?.categoryId);
+    const hasNoFixedSource =
+      typeof transaction?.fixedTransactionId === "undefined" &&
+      typeof transaction?.fixedMonth === "undefined";
+    const hasValidFixedSource =
+      typeof transaction?.fixedTransactionId === "string" &&
+      transaction.fixedTransactionId.trim().length > 0 &&
+      isValidMonthString(transaction.fixedMonth);
     const isValid =
       transaction &&
       typeof transaction === "object" &&
@@ -563,7 +586,8 @@ function validateBackup(data) {
       Number.isInteger(transaction.amount) &&
       transaction.amount > 0 &&
       typeof transaction.createdAt === "string" &&
-      Number.isFinite(Date.parse(transaction.createdAt));
+      Number.isFinite(Date.parse(transaction.createdAt)) &&
+      (hasNoFixedSource || hasValidFixedSource);
 
     if (!isValid || transactionIds.has(transaction.id)) {
       throw new Error("収支記録が破損しています。");
@@ -581,6 +605,12 @@ function validateBackup(data) {
       createdAt: transaction.createdAt,
       ...(typeof transaction.updatedAt === "string"
         ? { updatedAt: transaction.updatedAt }
+        : {}),
+      ...(hasValidFixedSource
+        ? {
+            fixedTransactionId: transaction.fixedTransactionId,
+            fixedMonth: transaction.fixedMonth,
+          }
         : {}),
     };
   });
@@ -1083,6 +1113,70 @@ function handleFixedAction(event) {
   }
 }
 
+function generateFixedTransactionsForMonth(month) {
+  if (!isValidMonthString(month)) {
+    throw new Error("対象月を選択してください。");
+  }
+
+  const applicableItems = fixedTransactions.filter((item) => {
+    return (
+      item.active &&
+      item.startMonth <= month &&
+      (item.endMonth === "" || item.endMonth >= month)
+    );
+  });
+  const generatedItems = [];
+  let skippedCount = 0;
+  const [year, monthNumber] = month.split("-").map(Number);
+  const lastDay = new Date(year, monthNumber, 0).getDate();
+
+  applicableItems.forEach((item) => {
+    const alreadyGenerated = transactions.some((transaction) => {
+      return (
+        transaction.fixedTransactionId === item.id &&
+        transaction.fixedMonth === month
+      );
+    });
+
+    if (alreadyGenerated) {
+      skippedCount += 1;
+      return;
+    }
+
+    const day = Math.min(item.day, lastDay);
+    generatedItems.push({
+      id: createId("transaction"),
+      date: `${month}-${String(day).padStart(2, "0")}`,
+      type: item.type,
+      categoryId: item.categoryId,
+      name: item.name,
+      amount: item.amount,
+      createdAt: new Date().toISOString(),
+      fixedTransactionId: item.id,
+      fixedMonth: month,
+    });
+  });
+
+  if (generatedItems.length > 0) {
+    transactions.push(...generatedItems);
+
+    try {
+      saveTransactions();
+    } catch (error) {
+      transactions.splice(-generatedItems.length, generatedItems.length);
+      throw error;
+    }
+  }
+
+  setSelectedMonth(month);
+
+  return {
+    generatedCount: generatedItems.length,
+    skippedCount,
+    applicableCount: applicableItems.length,
+  };
+}
+
 /**
  * 重複するカテゴリ名が存在するか確認する。
  */
@@ -1275,6 +1369,13 @@ function createHistoryItem(transaction) {
   categoryElement.textContent = categoryName;
 
   detailsElement.append(dateElement, categoryElement);
+
+  if (transaction.fixedTransactionId) {
+    const fixedLabel = document.createElement("span");
+    fixedLabel.className = "history-fixed-label";
+    fixedLabel.textContent = "固定収支";
+    detailsElement.appendChild(fixedLabel);
+  }
   mainArea.append(nameElement, detailsElement);
 
   const rightArea = document.createElement("div");
@@ -2029,6 +2130,39 @@ fixedCancelButton.addEventListener("click", () => {
 
 fixedList.addEventListener("click", handleFixedAction);
 
+fixedGenerationButton.addEventListener("click", () => {
+  fixedGenerationMessage.textContent = "";
+
+  try {
+    const result = generateFixedTransactionsForMonth(
+      fixedGenerationMonthInput.value,
+    );
+
+    if (result.applicableCount === 0) {
+      fixedGenerationMessage.textContent =
+        "この月に該当する有効な固定収支はありません。";
+      return;
+    }
+
+    if (result.generatedCount === 0) {
+      fixedGenerationMessage.textContent =
+        "この月の固定収支はすべて反映済みです。";
+      return;
+    }
+
+    fixedGenerationMessage.textContent =
+      `${result.generatedCount}件を履歴へ反映しました。${
+        result.skippedCount > 0
+          ? `反映済み${result.skippedCount}件はスキップしました。`
+          : ""
+      }`;
+  } catch (error) {
+    console.error("固定収支の反映に失敗しました。", error);
+    fixedGenerationMessage.textContent =
+      error.message || "固定収支を反映できませんでした。";
+  }
+});
+
 /**
  * カテゴリを追加する。
  */
@@ -2264,6 +2398,7 @@ transactionForm.addEventListener("submit", (event) => {
 setToday();
 initializeFixedDayOptions();
 resetFixedForm();
+fixedGenerationMonthInput.value = getCurrentMonth();
 renderCategories();
 renderFixedTransactions();
 setSelectedMonth(getCurrentMonth());

@@ -112,6 +112,13 @@ const categorySelect = document.getElementById("category");
 const transactionNameInput = document.getElementById("transaction-name");
 const formMessage = document.getElementById("form-message");
 const historyList = document.getElementById("history-list");
+const calendarGrid = document.getElementById("calendar-grid");
+
+const historyMonthInput = document.getElementById("history-month");
+const summaryMonthInput = document.getElementById("summary-month");
+const monthlyIncome = document.getElementById("monthly-income");
+const monthlyExpense = document.getElementById("monthly-expense");
+const monthlyBalance = document.getElementById("monthly-balance");
 
 const submitButton = document.getElementById("submit-button");
 const cancelEditButton = document.getElementById(
@@ -454,6 +461,102 @@ function formatAmount(amount) {
 }
 
 /**
+ * 指定月に含まれる収支記録を取得する。
+ */
+function getTransactionsByMonth(month) {
+  if (!/^\d{4}-\d{2}$/.test(month)) {
+    return [];
+  }
+
+  return transactions.filter((transaction) => {
+    return transaction.date.startsWith(`${month}-`);
+  });
+}
+
+/**
+ * 月間カレンダーを更新する。
+ */
+function renderCalendar() {
+  calendarGrid.replaceChildren();
+
+  const selectedMonth = historyMonthInput.value;
+
+  if (!/^\d{4}-\d{2}$/.test(selectedMonth)) {
+    return;
+  }
+
+  const [year, month] = selectedMonth.split("-").map(Number);
+  const firstWeekday = new Date(year, month - 1, 1).getDay();
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const monthTransactions = getTransactionsByMonth(selectedMonth);
+
+  for (let index = 0; index < firstWeekday; index += 1) {
+    const blankCell = document.createElement("div");
+    blankCell.className = "calendar-day calendar-day-empty";
+    blankCell.setAttribute("aria-hidden", "true");
+    calendarGrid.appendChild(blankCell);
+  }
+
+  for (let day = 1; day <= daysInMonth; day += 1) {
+    const date = `${selectedMonth}-${String(day).padStart(2, "0")}`;
+    const dailyTransactions = monthTransactions.filter((transaction) => {
+      return transaction.date === date;
+    });
+    const income = dailyTransactions
+      .filter((transaction) => transaction.type === "income")
+      .reduce((total, transaction) => total + transaction.amount, 0);
+    const expense = dailyTransactions
+      .filter((transaction) => transaction.type === "expense")
+      .reduce((total, transaction) => total + transaction.amount, 0);
+
+    const dayCell = document.createElement("div");
+    dayCell.className = "calendar-day";
+
+    const dayNumber = document.createElement("span");
+    dayNumber.className = "calendar-day-number";
+    dayNumber.textContent = day;
+    dayCell.appendChild(dayNumber);
+
+    if (income > 0) {
+      const incomeElement = document.createElement("span");
+      incomeElement.className = "calendar-amount income";
+      incomeElement.textContent = `+${formatAmount(income)}`;
+      dayCell.appendChild(incomeElement);
+    }
+
+    if (expense > 0) {
+      const expenseElement = document.createElement("span");
+      expenseElement.className = "calendar-amount expense";
+      expenseElement.textContent = `-${formatAmount(expense)}`;
+      dayCell.appendChild(expenseElement);
+    }
+
+    calendarGrid.appendChild(dayCell);
+  }
+}
+
+/**
+ * 選択月の月間収支を更新する。
+ */
+function renderSummary() {
+  const monthTransactions = getTransactionsByMonth(summaryMonthInput.value);
+  const income = monthTransactions
+    .filter((transaction) => transaction.type === "income")
+    .reduce((total, transaction) => total + transaction.amount, 0);
+  const expense = monthTransactions
+    .filter((transaction) => transaction.type === "expense")
+    .reduce((total, transaction) => total + transaction.amount, 0);
+  const balance = income - expense;
+
+  monthlyIncome.textContent = `${formatAmount(income)}円`;
+  monthlyExpense.textContent = `${formatAmount(expense)}円`;
+  monthlyBalance.textContent = `${balance < 0 ? "-" : ""}${formatAmount(
+    Math.abs(balance),
+  )}円`;
+  monthlyBalance.classList.toggle("negative", balance < 0);
+}
+
+/**
  * 履歴の1件分を作成する。
  */
 function createHistoryItem(transaction) {
@@ -538,17 +641,19 @@ function createHistoryItem(transaction) {
 function renderHistory() {
   historyList.replaceChildren();
 
-  if (transactions.length === 0) {
+  const monthTransactions = getTransactionsByMonth(historyMonthInput.value);
+
+  if (monthTransactions.length === 0) {
     const emptyMessage = document.createElement("p");
 
     emptyMessage.className = "history-empty-message";
-    emptyMessage.textContent = "まだ収支が登録されていません。";
+    emptyMessage.textContent = "この月の収支は登録されていません。";
 
     historyList.appendChild(emptyMessage);
     return;
   }
 
-  const sortedTransactions = [...transactions].sort((first, second) => {
+  const sortedTransactions = [...monthTransactions].sort((first, second) => {
     const dateComparison = second.date.localeCompare(first.date);
 
     if (dateComparison !== 0) {
@@ -561,6 +666,25 @@ function renderHistory() {
   sortedTransactions.forEach((transaction) => {
     historyList.appendChild(createHistoryItem(transaction));
   });
+}
+
+/**
+ * 履歴・集計画面の対象月を今月に設定する。
+ */
+function setCurrentMonth() {
+  const today = new Date();
+  const currentMonth = `${today.getFullYear()}-${String(
+    today.getMonth() + 1,
+  ).padStart(2, "0")}`;
+
+  historyMonthInput.value = currentMonth;
+  summaryMonthInput.value = currentMonth;
+}
+
+function renderTransactionViews() {
+  renderCalendar();
+  renderHistory();
+  renderSummary();
 }
 
 /**
@@ -652,7 +776,7 @@ function deleteTransaction(transactionId) {
   });
 
   saveTransactions();
-  renderHistory();
+  renderTransactionViews();
 
   if (editingTransactionId === transactionId) {
     resetTransactionForm();
@@ -818,6 +942,13 @@ incomeCategoryList.addEventListener("click", handleCategoryAction);
 
 historyList.addEventListener("click", handleHistoryAction);
 
+historyMonthInput.addEventListener("change", () => {
+  renderCalendar();
+  renderHistory();
+});
+
+summaryMonthInput.addEventListener("change", renderSummary);
+
 cancelEditButton.addEventListener("click", () => {
   resetTransactionForm();
   formMessage.textContent = "編集をキャンセルしました。";
@@ -906,7 +1037,7 @@ transactionForm.addEventListener("submit", (event) => {
     };
 
     saveTransactions();
-    renderHistory();
+    renderTransactionViews();
     resetTransactionForm();
 
     formMessage.textContent = "更新しました。";
@@ -926,7 +1057,7 @@ transactionForm.addEventListener("submit", (event) => {
   transactions.push(transaction);
 
   saveTransactions();
-  renderHistory();
+  renderTransactionViews();
   resetTransactionForm();
 
   formMessage.textContent = "登録しました。";
@@ -936,5 +1067,6 @@ transactionForm.addEventListener("submit", (event) => {
  * 初期表示。
  */
 setToday();
+setCurrentMonth();
 renderCategories();
-renderHistory();
+renderTransactionViews();

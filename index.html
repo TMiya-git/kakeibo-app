@@ -9,8 +9,8 @@
 
     <title>家計簿</title>
 
-    <link rel="stylesheet" href="./style.css?v=20260806-3" />
-    <script src="./app.js?v=20260806-3" defer></script>
+    <link rel="stylesheet" href="./style.css?v=20260808-1" />
+    <script src="./app.js?v=20260808-1" defer></script>
   </head>
 
   <body>
@@ -116,6 +116,27 @@
       <section id="history-page" class="page">
         <h2>履歴</h2>
 
+        <div class="month-control">
+          <label for="history-month">対象月</label>
+          <input id="history-month" type="month" />
+        </div>
+
+        <!-- 月間カレンダー -->
+        <div class="calendar">
+          <div class="calendar-weekdays">
+            <div>日</div>
+            <div>月</div>
+            <div>火</div>
+            <div>水</div>
+            <div>木</div>
+            <div>金</div>
+            <div>土</div>
+          </div>
+
+          <div id="calendar-grid" class="calendar-grid"></div>
+        </div>
+
+        <!-- 従来の履歴一覧 -->
         <div id="history-list" class="history-list"></div>
       </section>
 
@@ -123,25 +144,30 @@
       <section id="summary-page" class="page">
         <h2>集計</h2>
 
+        <div class="month-control">
+          <label for="summary-month">対象月</label>
+          <input id="summary-month" type="month" />
+        </div>
+
         <div class="summary-grid">
           <article class="summary-card">
-            <span>今月の収入</span>
-            <strong>0円</strong>
+            <span>月間収入</span>
+            <strong id="monthly-income">0円</strong>
           </article>
 
           <article class="summary-card">
-            <span>今月の支出</span>
-            <strong>0円</strong>
+            <span>月間支出</span>
+            <strong id="monthly-expense">0円</strong>
           </article>
 
           <article class="summary-card">
-            <span>今月の収支</span>
-            <strong>0円</strong>
+            <span>月間収支</span>
+            <strong id="monthly-balance">0円</strong>
           </article>
         </div>
 
         <div class="card empty-card">
-          <p>円グラフや月別グラフをここに表示します。</p>
+          <p>カテゴリ別集計とグラフは次の段階で追加します。</p>
         </div>
       </section>
 

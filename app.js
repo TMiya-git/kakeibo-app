@@ -139,6 +139,11 @@ const incomeChartLegend = document.getElementById(
 const incomeChartEmpty = document.getElementById(
   "income-chart-empty",
 );
+const summaryYearSelect = document.getElementById("summary-year");
+const yearlyChart = document.getElementById("yearly-chart");
+const yearlyChartEmpty = document.getElementById(
+  "yearly-chart-empty",
+);
 
 const submitButton = document.getElementById("submit-button");
 const cancelEditButton = document.getElementById(
@@ -163,6 +168,7 @@ let categories = loadCategories();
 let transactions = loadTransactions();
 let editingTransactionId = null;
 let selectedMonth = "";
+let selectedYear = String(new Date().getFullYear());
 
 /**
  * 初期カテゴリを複製する。
@@ -530,11 +536,14 @@ function setSelectedMonth(month) {
 
   historyMonthInput.value = selectedMonth;
   summaryMonthInput.value = selectedMonth;
+  selectedYear = selectedMonth.slice(0, 4);
 
   renderCalendar();
   renderHistory();
   renderMonthlySummary();
   renderCategoryCharts();
+  renderYearOptions();
+  renderYearlyChart();
 }
 
 /**
@@ -902,16 +911,16 @@ function renderCategoryCharts() {
     empty: expenseChartEmpty,
     label: "支出",
     colors: [
-      "#17365d",
-      "#a32121",
-      "#5d6b3c",
-      "#8a5a25",
-      "#5b4778",
-      "#28706b",
-      "#6b5b4b",
-      "#395f8c",
-      "#9a6a6a",
-      "#777777",
+      "#df5b5b",
+      "#4f8fcf",
+      "#e29a45",
+      "#8abf5a",
+      "#a678c2",
+      "#4fb5ad",
+      "#d27c9b",
+      "#7e9fd1",
+      "#c5a55a",
+      "#9a9a9a",
     ],
   });
 
@@ -922,17 +931,119 @@ function renderCategoryCharts() {
     empty: incomeChartEmpty,
     label: "収入",
     colors: [
-      "#17652e",
-      "#28706b",
-      "#5d6b3c",
-      "#395f8c",
-      "#8a5a25",
-      "#5b4778",
-      "#6b5b4b",
-      "#4d7a57",
-      "#6b7890",
-      "#777777",
+      "#42a85f",
+      "#4fb5ad",
+      "#7e9fd1",
+      "#8abf5a",
+      "#e29a45",
+      "#a678c2",
+      "#5bbf8a",
+      "#73a95b",
+      "#68a6c9",
+      "#9a9a9a",
     ],
+  });
+}
+
+/**
+ * 年間グラフで選択できる年を更新する。
+ */
+function renderYearOptions() {
+  const availableYears = new Set([
+    String(new Date().getFullYear()),
+    selectedYear,
+  ]);
+
+  transactions.forEach((transaction) => {
+    availableYears.add(transaction.date.slice(0, 4));
+  });
+
+  summaryYearSelect.replaceChildren();
+
+  [...availableYears]
+    .sort((first, second) => Number(second) - Number(first))
+    .forEach((year) => {
+      const option = document.createElement("option");
+
+      option.value = year;
+      option.textContent = `${Number(year)}年`;
+      summaryYearSelect.appendChild(option);
+    });
+
+  summaryYearSelect.value = selectedYear;
+}
+
+/**
+ * 選択年の月別収入・支出を棒グラフで表示する。
+ */
+function renderYearlyChart() {
+  const monthlyTotals = Array.from({ length: 12 }, () => ({
+    income: 0,
+    expense: 0,
+  }));
+
+  transactions
+    .filter((transaction) => {
+      return transaction.date.slice(0, 4) === selectedYear;
+    })
+    .forEach((transaction) => {
+      const monthIndex = Number(transaction.date.slice(5, 7)) - 1;
+
+      if (monthIndex < 0 || monthIndex > 11) {
+        return;
+      }
+
+      monthlyTotals[monthIndex][transaction.type] += transaction.amount;
+    });
+
+  const maximumAmount = monthlyTotals.reduce((maximum, totals) => {
+    return Math.max(maximum, totals.income, totals.expense);
+  }, 0);
+
+  yearlyChart.replaceChildren();
+  yearlyChart.setAttribute(
+    "aria-label",
+    `${Number(selectedYear)}年の月別収入・支出棒グラフ`,
+  );
+
+  yearlyChartEmpty.classList.toggle("hidden", maximumAmount > 0);
+  yearlyChartEmpty.textContent =
+    `${Number(selectedYear)}年の収支データはありません。`;
+
+  monthlyTotals.forEach((totals, index) => {
+    const monthGroup = document.createElement("div");
+    const bars = document.createElement("div");
+    const incomeBar = document.createElement("div");
+    const expenseBar = document.createElement("div");
+    const monthLabel = document.createElement("span");
+    const incomeHeight = maximumAmount > 0
+      ? (totals.income / maximumAmount) * 100
+      : 0;
+    const expenseHeight = maximumAmount > 0
+      ? (totals.expense / maximumAmount) * 100
+      : 0;
+
+    monthGroup.className = "yearly-month";
+    bars.className = "yearly-bars";
+    incomeBar.className = "yearly-bar income";
+    expenseBar.className = "yearly-bar expense";
+    monthLabel.className = "yearly-month-label";
+
+    incomeBar.style.height = `${incomeHeight}%`;
+    expenseBar.style.height = `${expenseHeight}%`;
+    incomeBar.title = `${index + 1}月の収入 ${formatAmount(
+      totals.income,
+    )}円`;
+    expenseBar.title = `${index + 1}月の支出 ${formatAmount(
+      totals.expense,
+    )}円`;
+    incomeBar.setAttribute("aria-label", incomeBar.title);
+    expenseBar.setAttribute("aria-label", expenseBar.title);
+    monthLabel.textContent = `${index + 1}月`;
+
+    bars.append(incomeBar, expenseBar);
+    monthGroup.append(bars, monthLabel);
+    yearlyChart.appendChild(monthGroup);
   });
 }
 
@@ -1029,6 +1140,8 @@ function deleteTransaction(transactionId) {
   renderHistory();
   renderMonthlySummary();
   renderCategoryCharts();
+  renderYearOptions();
+  renderYearlyChart();
 
   if (editingTransactionId === transactionId) {
     resetTransactionForm();
@@ -1160,6 +1273,11 @@ summaryMonthInput.addEventListener(
     setSelectedMonth(event.target.value);
   },
 );
+
+summaryYearSelect.addEventListener("change", (event) => {
+  selectedYear = event.target.value;
+  renderYearlyChart();
+});
 
 /**
  * 支出・収入を変更したとき、カテゴリ選択肢も変更する。

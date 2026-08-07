@@ -9,8 +9,8 @@
 
     <title>家計簿</title>
 
-    <link rel="stylesheet" href="./style.css?v=20260808-4" />
-    <script src="./app.js?v=20260808-5" defer></script>
+    <link rel="stylesheet" href="./style.css?v=20260808-7" />
+    <script src="./app.js?v=20260808-7" defer></script>
   </head>
 
   <body>
@@ -198,9 +198,31 @@
           <p id="income-chart-empty" class="chart-empty hidden"></p>
         </section>
 
-        <div class="card empty-card summary-next-feature">
-          <p>年間グラフは次の段階で追加します。</p>
-        </div>
+        <section class="card chart-card" aria-labelledby="yearly-chart-title">
+          <div class="yearly-chart-heading">
+            <h3 id="yearly-chart-title">年間収入・支出</h3>
+
+            <label for="summary-year">
+              対象年
+              <select id="summary-year"></select>
+            </label>
+          </div>
+
+          <div class="yearly-chart-legend" aria-hidden="true">
+            <span><i class="income"></i>収入</span>
+            <span><i class="expense"></i>支出</span>
+          </div>
+
+          <p id="yearly-chart-empty" class="chart-empty hidden"></p>
+
+          <div class="yearly-chart-scroll" tabindex="0">
+            <div
+              id="yearly-chart"
+              class="yearly-chart"
+              role="img"
+            ></div>
+          </div>
+        </section>
       </section>
 
       <!-- 固定収支画面 -->

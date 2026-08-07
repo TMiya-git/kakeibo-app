@@ -129,6 +129,16 @@ const expenseChartLegend = document.getElementById(
 const expenseChartEmpty = document.getElementById(
   "expense-chart-empty",
 );
+const incomeChartContent = document.getElementById(
+  "income-chart-content",
+);
+const incomeChart = document.getElementById("income-chart");
+const incomeChartLegend = document.getElementById(
+  "income-chart-legend",
+);
+const incomeChartEmpty = document.getElementById(
+  "income-chart-empty",
+);
 
 const submitButton = document.getElementById("submit-button");
 const cancelEditButton = document.getElementById(
@@ -524,7 +534,7 @@ function setSelectedMonth(month) {
   renderCalendar();
   renderHistory();
   renderMonthlySummary();
-  renderExpenseChart();
+  renderCategoryCharts();
 }
 
 /**
@@ -762,26 +772,26 @@ function renderMonthlySummary() {
 }
 
 /**
- * 選択月の支出をカテゴリ別に集計して円グラフを表示する。
+ * 選択月の収支をカテゴリ別に集計して円グラフを表示する。
  */
-function renderExpenseChart() {
-  const expenseTotals = new Map();
+function renderCategoryChart(type, elements) {
+  const categoryTotals = new Map();
 
   getTransactionsForSelectedMonth()
     .filter((transaction) => {
-      return transaction.type === "expense";
+      return transaction.type === type;
     })
     .forEach((transaction) => {
       const currentTotal =
-        expenseTotals.get(transaction.categoryId) ?? 0;
+        categoryTotals.get(transaction.categoryId) ?? 0;
 
-      expenseTotals.set(
+      categoryTotals.set(
         transaction.categoryId,
         currentTotal + transaction.amount,
       );
     });
 
-  const chartData = [...expenseTotals.entries()]
+  const chartData = [...categoryTotals.entries()]
     .map(([categoryId, amount]) => ({
       categoryId,
       name: getCategoryName(categoryId),
@@ -789,35 +799,23 @@ function renderExpenseChart() {
     }))
     .sort((first, second) => second.amount - first.amount);
 
-  expenseChart.replaceChildren();
-  expenseChartLegend.replaceChildren();
+  elements.chart.replaceChildren();
+  elements.legend.replaceChildren();
 
   if (chartData.length === 0) {
-    expenseChartContent.classList.add("hidden");
-    expenseChartEmpty.classList.remove("hidden");
-    expenseChartEmpty.textContent =
-      `${formatMonth(selectedMonth)}の支出データはありません。`;
+    elements.content.classList.add("hidden");
+    elements.empty.classList.remove("hidden");
+    elements.empty.textContent =
+      `${formatMonth(selectedMonth)}の${elements.label}データはありません。`;
     return;
   }
 
-  expenseChartContent.classList.remove("hidden");
-  expenseChartEmpty.classList.add("hidden");
+  elements.content.classList.remove("hidden");
+  elements.empty.classList.add("hidden");
 
-  const totalExpense = chartData.reduce((total, item) => {
+  const totalAmount = chartData.reduce((total, item) => {
     return total + item.amount;
   }, 0);
-  const chartColors = [
-    "#17365d",
-    "#a32121",
-    "#5d6b3c",
-    "#8a5a25",
-    "#5b4778",
-    "#28706b",
-    "#6b5b4b",
-    "#395f8c",
-    "#9a6a6a",
-    "#777777",
-  ];
   const svgNamespace = "http://www.w3.org/2000/svg";
   const backgroundCircle = document.createElementNS(
     svgNamespace,
@@ -828,13 +826,13 @@ function renderExpenseChart() {
   backgroundCircle.setAttribute("cx", "110");
   backgroundCircle.setAttribute("cy", "110");
   backgroundCircle.setAttribute("r", "72");
-  expenseChart.appendChild(backgroundCircle);
+  elements.chart.appendChild(backgroundCircle);
 
   let cumulativePercentage = 0;
 
   chartData.forEach((item, index) => {
-    const percentage = (item.amount / totalExpense) * 100;
-    const color = chartColors[index % chartColors.length];
+    const percentage = (item.amount / totalAmount) * 100;
+    const color = elements.colors[index % elements.colors.length];
     const segment = document.createElementNS(svgNamespace, "circle");
 
     segment.setAttribute("class", "pie-chart-segment");
@@ -851,7 +849,7 @@ function renderExpenseChart() {
       String(-cumulativePercentage),
     );
     segment.setAttribute("stroke", color);
-    expenseChart.appendChild(segment);
+    elements.chart.appendChild(segment);
 
     const legendItem = document.createElement("li");
     const legendLabel = document.createElement("span");
@@ -869,31 +867,73 @@ function renderExpenseChart() {
 
     legendLabel.append(colorMarker, categoryName);
     legendItem.append(legendLabel, categoryAmount);
-    expenseChartLegend.appendChild(legendItem);
+    elements.legend.appendChild(legendItem);
 
     cumulativePercentage += percentage;
   });
 
   const totalLabel = document.createElementNS(svgNamespace, "text");
-  const totalAmount = document.createElementNS(svgNamespace, "text");
+  const totalAmountText = document.createElementNS(svgNamespace, "text");
 
   totalLabel.setAttribute("class", "pie-chart-total-label");
   totalLabel.setAttribute("x", "110");
   totalLabel.setAttribute("y", "103");
-  totalLabel.textContent = "支出合計";
+  totalLabel.textContent = `${elements.label}合計`;
 
-  totalAmount.setAttribute("class", "pie-chart-total-amount");
-  totalAmount.setAttribute("x", "110");
-  totalAmount.setAttribute("y", "126");
-  totalAmount.textContent = `${formatAmount(totalExpense)}円`;
+  totalAmountText.setAttribute("class", "pie-chart-total-amount");
+  totalAmountText.setAttribute("x", "110");
+  totalAmountText.setAttribute("y", "126");
+  totalAmountText.textContent = `${formatAmount(totalAmount)}円`;
 
-  expenseChart.append(totalLabel, totalAmount);
-  expenseChart.setAttribute(
+  elements.chart.append(totalLabel, totalAmountText);
+  elements.chart.setAttribute(
     "aria-label",
-    `${formatMonth(selectedMonth)}の支出カテゴリグラフ。合計${formatAmount(
-      totalExpense,
+    `${formatMonth(selectedMonth)}の${elements.label}カテゴリグラフ。合計${formatAmount(
+      totalAmount,
     )}円`,
   );
+}
+
+function renderCategoryCharts() {
+  renderCategoryChart("expense", {
+    content: expenseChartContent,
+    chart: expenseChart,
+    legend: expenseChartLegend,
+    empty: expenseChartEmpty,
+    label: "支出",
+    colors: [
+      "#17365d",
+      "#a32121",
+      "#5d6b3c",
+      "#8a5a25",
+      "#5b4778",
+      "#28706b",
+      "#6b5b4b",
+      "#395f8c",
+      "#9a6a6a",
+      "#777777",
+    ],
+  });
+
+  renderCategoryChart("income", {
+    content: incomeChartContent,
+    chart: incomeChart,
+    legend: incomeChartLegend,
+    empty: incomeChartEmpty,
+    label: "収入",
+    colors: [
+      "#17652e",
+      "#28706b",
+      "#5d6b3c",
+      "#395f8c",
+      "#8a5a25",
+      "#5b4778",
+      "#6b5b4b",
+      "#4d7a57",
+      "#6b7890",
+      "#777777",
+    ],
+  });
 }
 
 /**
@@ -988,7 +1028,7 @@ function deleteTransaction(transactionId) {
   renderCalendar();
   renderHistory();
   renderMonthlySummary();
-  renderExpenseChart();
+  renderCategoryCharts();
 
   if (editingTransactionId === transactionId) {
     resetTransactionForm();
@@ -1089,7 +1129,7 @@ function handleCategoryAction(event) {
   saveCategories();
   renderCategories();
   renderHistory();
-  renderExpenseChart();
+  renderCategoryCharts();
 }
 
 /**

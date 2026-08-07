@@ -10,7 +10,7 @@
     <title>家計簿</title>
 
     <link rel="stylesheet" href="./style.css?v=20260808-4" />
-    <script src="./app.js?v=20260808-4" defer></script>
+    <script src="./app.js?v=20260808-5" defer></script>
   </head>
 
   <body>
@@ -181,8 +181,25 @@
           <p id="expense-chart-empty" class="chart-empty hidden"></p>
         </section>
 
+        <section class="card chart-card" aria-labelledby="income-chart-title">
+          <h3 id="income-chart-title">収入カテゴリ</h3>
+
+          <div id="income-chart-content" class="chart-content">
+            <svg
+              id="income-chart"
+              class="pie-chart"
+              viewBox="0 0 220 220"
+              role="img"
+            ></svg>
+
+            <ul id="income-chart-legend" class="chart-legend"></ul>
+          </div>
+
+          <p id="income-chart-empty" class="chart-empty hidden"></p>
+        </section>
+
         <div class="card empty-card summary-next-feature">
-          <p>収入カテゴリと年間グラフは次の段階で追加します。</p>
+          <p>年間グラフは次の段階で追加します。</p>
         </div>
       </section>
 

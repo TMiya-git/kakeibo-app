@@ -9,8 +9,8 @@
 
     <title>家計簿</title>
 
-    <link rel="stylesheet" href="./style.css?v=20260808-8" />
-    <script src="./app.js?v=20260808-9" defer></script>
+    <link rel="stylesheet" href="./style.css?v=20260808-10" />
+    <script src="./app.js?v=20260808-10" defer></script>
   </head>
 
   <body>
@@ -229,13 +229,93 @@
       <section id="fixed-page" class="page">
         <h2>固定収支</h2>
 
-        <div class="card empty-card">
-          <p>家賃、奨学金、通信費などを登録する画面です。</p>
-        </div>
+        <form id="fixed-form" class="card fixed-form">
+          <div class="form-group">
+            <span class="form-label">収入・支出</span>
 
-        <button class="primary-button" type="button">
-          固定収支を追加
-        </button>
+            <div class="type-selector">
+              <label>
+                <input
+                  type="radio"
+                  name="fixed-type"
+                  value="expense"
+                  checked
+                />
+                <span>支出</span>
+              </label>
+
+              <label>
+                <input type="radio" name="fixed-type" value="income" />
+                <span>収入</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="fixed-category">カテゴリ</label>
+            <select id="fixed-category" required></select>
+          </div>
+
+          <div class="form-group">
+            <label for="fixed-name">名前</label>
+            <input
+              id="fixed-name"
+              type="text"
+              maxlength="50"
+              placeholder="例：家賃"
+              required
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="fixed-amount">金額</label>
+            <div class="amount-input">
+              <input
+                id="fixed-amount"
+                type="number"
+                min="1"
+                step="1"
+                inputmode="numeric"
+                required
+              />
+              <span>円</span>
+            </div>
+          </div>
+
+          <div class="fixed-period-grid">
+            <div class="form-group">
+              <label for="fixed-day">毎月の日付</label>
+              <select id="fixed-day" required></select>
+            </div>
+
+            <div class="form-group">
+              <label for="fixed-start-month">開始月</label>
+              <input id="fixed-start-month" type="month" required />
+            </div>
+
+            <div class="form-group">
+              <label for="fixed-end-month">終了月（任意）</label>
+              <input id="fixed-end-month" type="month" />
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button id="fixed-submit-button" class="primary-button" type="submit">
+              登録
+            </button>
+            <button
+              id="fixed-cancel-button"
+              class="secondary-button hidden"
+              type="button"
+            >
+              編集をキャンセル
+            </button>
+          </div>
+
+          <p id="fixed-message" class="form-message" aria-live="polite"></p>
+        </form>
+
+        <div id="fixed-list" class="fixed-list"></div>
       </section>
 
       <!-- 設定画面 -->

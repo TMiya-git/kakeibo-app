@@ -713,6 +713,111 @@ input::placeholder {
 }
 
 /* =========================
+   Fixed transactions
+========================= */
+
+.fixed-form {
+  margin-bottom: 18px;
+}
+
+.fixed-period-grid {
+  display: grid;
+  gap: 0 12px;
+}
+
+.fixed-list {
+  display: grid;
+  gap: 10px;
+}
+
+.fixed-item {
+  padding: 13px;
+  border: 1px solid #777777;
+  background-color: #ffffff;
+}
+
+.fixed-item.inactive {
+  opacity: 0.58;
+}
+
+.fixed-item-header,
+.fixed-item-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.fixed-item-name {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: 16px;
+}
+
+.fixed-item-amount {
+  flex-shrink: 0;
+  margin: 0;
+  font-family: Consolas, "Courier New", monospace;
+  font-weight: 700;
+}
+
+.fixed-item-amount.income {
+  color: #17652e;
+}
+
+.fixed-item-amount.expense {
+  color: #a32121;
+}
+
+.fixed-item-details {
+  margin: 8px 0 11px;
+  color: #555555;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.fixed-item-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.fixed-action-button {
+  min-height: 34px;
+  padding: 6px 9px;
+  border: 1px solid #777777;
+  background-color: #eeeeee;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.fixed-action-button.delete {
+  color: #a32121;
+}
+
+.fixed-status {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.fixed-empty {
+  padding: 24px 12px;
+  border: 1px solid #777777;
+  background-color: #ffffff;
+  color: #555555;
+  text-align: center;
+}
+
+@media (min-width: 600px) {
+  .fixed-period-grid {
+    grid-template-columns: 0.7fr 1fr 1fr;
+  }
+}
+
+/* =========================
    History
 ========================= */
 

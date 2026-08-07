@@ -2,6 +2,7 @@
 
 const CATEGORY_STORAGE_KEY = "kakeiboCategories";
 const TRANSACTION_STORAGE_KEY = "kakeiboTransactions";
+const FIXED_STORAGE_KEY = "kakeiboFixedTransactions";
 
 const defaultCategories = [
   {
@@ -172,10 +173,26 @@ const backupImportButton = document.getElementById(
 const backupFileInput = document.getElementById("backup-file-input");
 const backupMessage = document.getElementById("backup-message");
 const csvExportButton = document.getElementById("csv-export-button");
+const fixedForm = document.getElementById("fixed-form");
+const fixedCategorySelect = document.getElementById("fixed-category");
+const fixedNameInput = document.getElementById("fixed-name");
+const fixedAmountInput = document.getElementById("fixed-amount");
+const fixedDaySelect = document.getElementById("fixed-day");
+const fixedStartMonthInput = document.getElementById("fixed-start-month");
+const fixedEndMonthInput = document.getElementById("fixed-end-month");
+const fixedSubmitButton = document.getElementById("fixed-submit-button");
+const fixedCancelButton = document.getElementById("fixed-cancel-button");
+const fixedMessage = document.getElementById("fixed-message");
+const fixedList = document.getElementById("fixed-list");
+const fixedTypeInputs = document.querySelectorAll(
+  'input[name="fixed-type"]',
+);
 
 let categories = loadCategories();
 let transactions = loadTransactions();
+let fixedTransactions = loadFixedTransactions();
 let editingTransactionId = null;
+let editingFixedId = null;
 let selectedMonth = "";
 let selectedYear = String(new Date().getFullYear());
 
@@ -291,15 +308,61 @@ function saveTransactions() {
   );
 }
 
+function loadFixedTransactions() {
+  const savedFixedTransactions = localStorage.getItem(FIXED_STORAGE_KEY);
+
+  if (!savedFixedTransactions) {
+    return [];
+  }
+
+  try {
+    const parsedFixedTransactions = JSON.parse(savedFixedTransactions);
+
+    if (!Array.isArray(parsedFixedTransactions)) {
+      return [];
+    }
+
+    return parsedFixedTransactions.filter((item) => {
+      return (
+        item &&
+        typeof item.id === "string" &&
+        (item.type === "expense" || item.type === "income") &&
+        typeof item.categoryId === "string" &&
+        typeof item.name === "string" &&
+        Number.isInteger(item.amount) &&
+        item.amount > 0 &&
+        Number.isInteger(item.day) &&
+        item.day >= 1 &&
+        item.day <= 31 &&
+        isValidMonthString(item.startMonth) &&
+        (item.endMonth === "" || isValidMonthString(item.endMonth)) &&
+        (item.endMonth === "" || item.endMonth >= item.startMonth) &&
+        typeof item.active === "boolean"
+      );
+    });
+  } catch (error) {
+    console.error("固定収支の読み込みに失敗しました。", error);
+    return [];
+  }
+}
+
+function saveFixedTransactions() {
+  localStorage.setItem(
+    FIXED_STORAGE_KEY,
+    JSON.stringify(fixedTransactions),
+  );
+}
+
 /**
  * 現在のデータをJSONファイルとして保存する。
  */
 function exportBackup() {
   const backup = {
-    version: 1,
+    version: 2,
     exportedAt: new Date().toISOString(),
     categories,
     transactions,
+    fixedTransactions,
   };
   const json = JSON.stringify(backup, null, 2);
   const blob = new Blob([json], {
@@ -325,7 +388,7 @@ function exportBackup() {
   }, 1000);
 
   backupMessage.textContent =
-    `カテゴリ${categories.length}件、収支${transactions.length}件を保存しました。`;
+    `カテゴリ${categories.length}件、収支${transactions.length}件、固定収支${fixedTransactions.length}件を保存しました。`;
 }
 
 /**
@@ -416,6 +479,10 @@ function isValidDateString(value) {
   );
 }
 
+function isValidMonthString(value) {
+  return /^\d{4}-(0[1-9]|1[0-2])$/.test(value);
+}
+
 /**
  * 復元データを検証し、アプリで使用する形式に整える。
  */
@@ -424,7 +491,7 @@ function validateBackup(data) {
     throw new Error("バックアップの形式が正しくありません。");
   }
 
-  if (data.version !== 1) {
+  if (data.version !== 1 && data.version !== 2) {
     throw new Error("対応していないバックアップ形式です。");
   }
 
@@ -518,9 +585,64 @@ function validateBackup(data) {
     };
   });
 
+  const backupFixedTransactions = data.version === 1
+    ? []
+    : data.fixedTransactions;
+
+  if (!Array.isArray(backupFixedTransactions)) {
+    throw new Error("固定収支データが見つかりません。");
+  }
+
+  const fixedIds = new Set();
+  const restoredFixedTransactions = backupFixedTransactions.map((item) => {
+    const relatedCategory = categoriesById.get(item?.categoryId);
+    const isValid =
+      item &&
+      typeof item === "object" &&
+      typeof item.id === "string" &&
+      item.id.trim().length > 0 &&
+      (item.type === "expense" || item.type === "income") &&
+      relatedCategory?.type === item.type &&
+      typeof item.name === "string" &&
+      item.name.trim().length > 0 &&
+      item.name.trim().length <= 50 &&
+      Number.isInteger(item.amount) &&
+      item.amount > 0 &&
+      Number.isInteger(item.day) &&
+      item.day >= 1 &&
+      item.day <= 31 &&
+      isValidMonthString(item.startMonth) &&
+      (item.endMonth === "" || isValidMonthString(item.endMonth)) &&
+      (item.endMonth === "" || item.endMonth >= item.startMonth) &&
+      typeof item.active === "boolean";
+
+    if (!isValid || fixedIds.has(item.id)) {
+      throw new Error("固定収支データが破損しています。");
+    }
+
+    fixedIds.add(item.id);
+
+    return {
+      id: item.id,
+      type: item.type,
+      categoryId: item.categoryId,
+      name: item.name.trim(),
+      amount: item.amount,
+      day: item.day,
+      startMonth: item.startMonth,
+      endMonth: item.endMonth,
+      active: item.active,
+      createdAt:
+        typeof item.createdAt === "string"
+          ? item.createdAt
+          : new Date().toISOString(),
+    };
+  });
+
   return {
     categories: restoredCategories,
     transactions: restoredTransactions,
+    fixedTransactions: restoredFixedTransactions,
   };
 }
 
@@ -532,6 +654,7 @@ function restoreBackup(restoredData) {
   const previousTransactions = localStorage.getItem(
     TRANSACTION_STORAGE_KEY,
   );
+  const previousFixedTransactions = localStorage.getItem(FIXED_STORAGE_KEY);
 
   try {
     localStorage.setItem(
@@ -541,6 +664,10 @@ function restoreBackup(restoredData) {
     localStorage.setItem(
       TRANSACTION_STORAGE_KEY,
       JSON.stringify(restoredData.transactions),
+    );
+    localStorage.setItem(
+      FIXED_STORAGE_KEY,
+      JSON.stringify(restoredData.fixedTransactions),
     );
   } catch (error) {
     if (previousCategories === null) {
@@ -558,15 +685,25 @@ function restoreBackup(restoredData) {
       );
     }
 
+    if (previousFixedTransactions === null) {
+      localStorage.removeItem(FIXED_STORAGE_KEY);
+    } else {
+      localStorage.setItem(FIXED_STORAGE_KEY, previousFixedTransactions);
+    }
+
     throw error;
   }
 
   categories = restoredData.categories;
   transactions = restoredData.transactions;
+  fixedTransactions = restoredData.fixedTransactions;
   editingTransactionId = null;
+  editingFixedId = null;
 
   resetTransactionForm();
   renderCategories();
+  resetFixedForm();
+  renderFixedTransactions();
   setSelectedMonth(getCurrentMonth());
 }
 
@@ -740,6 +877,210 @@ function renderCategorySettings() {
 function renderCategories() {
   renderCategorySelect();
   renderCategorySettings();
+  renderFixedCategorySelect();
+}
+
+function getSelectedFixedType() {
+  const checkedInput = document.querySelector(
+    'input[name="fixed-type"]:checked',
+  );
+
+  return checkedInput?.value ?? "expense";
+}
+
+function renderFixedCategorySelect() {
+  const type = getSelectedFixedType();
+  const previousValue = fixedCategorySelect.value;
+  const editingItem = fixedTransactions.find((item) => {
+    return item.id === editingFixedId;
+  });
+
+  fixedCategorySelect.replaceChildren();
+
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = "選択してください";
+  fixedCategorySelect.appendChild(placeholder);
+
+  const availableCategories = categories.filter((category) => {
+    return (
+      category.type === type &&
+      (category.active || editingItem?.categoryId === category.id)
+    );
+  });
+
+  availableCategories.forEach((category) => {
+    const option = document.createElement("option");
+    option.value = category.id;
+    option.textContent = category.active
+      ? category.name
+      : `${category.name}（非表示）`;
+    fixedCategorySelect.appendChild(option);
+  });
+
+  if (availableCategories.some((category) => category.id === previousValue)) {
+    fixedCategorySelect.value = previousValue;
+  }
+}
+
+function initializeFixedDayOptions() {
+  for (let day = 1; day <= 31; day += 1) {
+    const option = document.createElement("option");
+    option.value = day;
+    option.textContent = `${day}日`;
+    fixedDaySelect.appendChild(option);
+  }
+}
+
+function resetFixedForm() {
+  fixedForm.reset();
+  editingFixedId = null;
+  fixedSubmitButton.textContent = "登録";
+  fixedCancelButton.classList.add("hidden");
+  fixedStartMonthInput.value = getCurrentMonth();
+  fixedDaySelect.value = String(new Date().getDate());
+  renderFixedCategorySelect();
+}
+
+function createFixedItem(item) {
+  const article = document.createElement("article");
+  article.className = "fixed-item";
+
+  if (!item.active) {
+    article.classList.add("inactive");
+  }
+
+  const header = document.createElement("div");
+  const name = document.createElement("h3");
+  const amount = document.createElement("p");
+  const details = document.createElement("p");
+  const footer = document.createElement("div");
+  const status = document.createElement("span");
+  const actions = document.createElement("div");
+
+  header.className = "fixed-item-header";
+  name.className = "fixed-item-name";
+  amount.className = `fixed-item-amount ${item.type}`;
+  details.className = "fixed-item-details";
+  footer.className = "fixed-item-footer";
+  status.className = "fixed-status";
+  actions.className = "fixed-item-actions";
+
+  name.textContent = item.name;
+  amount.textContent = `${item.type === "income" ? "+" : "-"}${formatAmount(
+    item.amount,
+  )}円`;
+  details.textContent = `${getCategoryName(item.categoryId)} ／ 毎月${item.day}日 ／ ${formatMonth(
+    item.startMonth,
+  )}から${item.endMonth ? `${formatMonth(item.endMonth)}まで` : "終了月なし"}`;
+  status.textContent = item.active ? "有効" : "無効";
+
+  [
+    ["edit", "編集"],
+    ["toggle", item.active ? "無効にする" : "有効にする"],
+    ["delete", "削除"],
+  ].forEach(([action, label]) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `fixed-action-button${action === "delete" ? " delete" : ""}`;
+    button.dataset.fixedAction = action;
+    button.dataset.fixedId = item.id;
+    button.textContent = label;
+    actions.appendChild(button);
+  });
+
+  header.append(name, amount);
+  footer.append(status, actions);
+  article.append(header, details, footer);
+  return article;
+}
+
+function renderFixedTransactions() {
+  fixedList.replaceChildren();
+
+  if (fixedTransactions.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "fixed-empty";
+    empty.textContent = "固定収支はまだ登録されていません。";
+    fixedList.appendChild(empty);
+    return;
+  }
+
+  fixedTransactions.forEach((item) => {
+    fixedList.appendChild(createFixedItem(item));
+  });
+}
+
+function startEditingFixedItem(fixedId) {
+  const item = fixedTransactions.find((fixedItem) => fixedItem.id === fixedId);
+
+  if (!item) {
+    return;
+  }
+
+  editingFixedId = item.id;
+  fixedTypeInputs.forEach((input) => {
+    input.checked = input.value === item.type;
+  });
+  renderFixedCategorySelect();
+  fixedCategorySelect.value = item.categoryId;
+  fixedNameInput.value = item.name;
+  fixedAmountInput.value = item.amount;
+  fixedDaySelect.value = item.day;
+  fixedStartMonthInput.value = item.startMonth;
+  fixedEndMonthInput.value = item.endMonth;
+  fixedSubmitButton.textContent = "更新";
+  fixedCancelButton.classList.remove("hidden");
+  fixedMessage.textContent = "内容を修正して「更新」を押してください。";
+  fixedForm.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function handleFixedAction(event) {
+  const button = event.target.closest("button[data-fixed-action]");
+
+  if (!button) {
+    return;
+  }
+
+  const item = fixedTransactions.find((fixedItem) => {
+    return fixedItem.id === button.dataset.fixedId;
+  });
+
+  if (!item) {
+    return;
+  }
+
+  if (button.dataset.fixedAction === "edit") {
+    startEditingFixedItem(item.id);
+    return;
+  }
+
+  if (button.dataset.fixedAction === "toggle") {
+    item.active = !item.active;
+    saveFixedTransactions();
+    renderFixedTransactions();
+    fixedMessage.textContent = item.active
+      ? "固定収支を有効にしました。"
+      : "固定収支を無効にしました。";
+    return;
+  }
+
+  if (
+    button.dataset.fixedAction === "delete" &&
+    window.confirm(`${item.name}を削除しますか？`)
+  ) {
+    fixedTransactions = fixedTransactions.filter((fixedItem) => {
+      return fixedItem.id !== item.id;
+    });
+    saveFixedTransactions();
+    renderFixedTransactions();
+
+    if (editingFixedId === item.id) {
+      resetFixedForm();
+    }
+
+    fixedMessage.textContent = "固定収支を削除しました。";
+  }
 }
 
 /**
@@ -1531,6 +1872,7 @@ function handleCategoryAction(event) {
   renderCategories();
   renderHistory();
   renderCategoryCharts();
+  renderFixedTransactions();
 }
 
 /**
@@ -1576,6 +1918,116 @@ transactionTypeInputs.forEach((input) => {
     renderCategorySelect();
   });
 });
+
+fixedTypeInputs.forEach((input) => {
+  input.addEventListener("change", () => {
+    fixedCategorySelect.value = "";
+    renderFixedCategorySelect();
+  });
+});
+
+fixedForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  fixedMessage.textContent = "";
+
+  const type = getSelectedFixedType();
+  const categoryId = fixedCategorySelect.value;
+  const name = fixedNameInput.value.trim();
+  const amount = Number(fixedAmountInput.value);
+  const day = Number(fixedDaySelect.value);
+  const startMonth = fixedStartMonthInput.value;
+  const endMonth = fixedEndMonthInput.value;
+  const selectedCategory = categories.find((category) => {
+    return category.id === categoryId && category.type === type;
+  });
+
+  if (!selectedCategory || (!selectedCategory.active && !editingFixedId)) {
+    fixedMessage.textContent = "カテゴリを確認してください。";
+    return;
+  }
+
+  if (!name) {
+    fixedMessage.textContent = "名前を入力してください。";
+    return;
+  }
+
+  if (!Number.isInteger(amount) || amount <= 0) {
+    fixedMessage.textContent = "1円以上の整数を入力してください。";
+    return;
+  }
+
+  if (!Number.isInteger(day) || day < 1 || day > 31) {
+    fixedMessage.textContent = "毎月の日付を確認してください。";
+    return;
+  }
+
+  if (!isValidMonthString(startMonth)) {
+    fixedMessage.textContent = "開始月を選択してください。";
+    return;
+  }
+
+  if (endMonth && !isValidMonthString(endMonth)) {
+    fixedMessage.textContent = "終了月を確認してください。";
+    return;
+  }
+
+  if (endMonth && endMonth < startMonth) {
+    fixedMessage.textContent = "終了月は開始月以降にしてください。";
+    return;
+  }
+
+  if (editingFixedId) {
+    const index = fixedTransactions.findIndex((item) => {
+      return item.id === editingFixedId;
+    });
+
+    if (index === -1) {
+      fixedMessage.textContent = "更新する固定収支が見つかりません。";
+      return;
+    }
+
+    fixedTransactions[index] = {
+      ...fixedTransactions[index],
+      type,
+      categoryId,
+      name,
+      amount,
+      day,
+      startMonth,
+      endMonth,
+      updatedAt: new Date().toISOString(),
+    };
+    saveFixedTransactions();
+    resetFixedForm();
+    renderFixedTransactions();
+    fixedMessage.textContent = "固定収支を更新しました。";
+    return;
+  }
+
+  fixedTransactions.push({
+    id: createId("fixed"),
+    type,
+    categoryId,
+    name,
+    amount,
+    day,
+    startMonth,
+    endMonth,
+    active: true,
+    createdAt: new Date().toISOString(),
+  });
+  saveFixedTransactions();
+  resetFixedForm();
+  renderFixedTransactions();
+  fixedMessage.textContent = "固定収支を登録しました。";
+});
+
+fixedCancelButton.addEventListener("click", () => {
+  resetFixedForm();
+  fixedMessage.textContent = "編集をキャンセルしました。";
+});
+
+fixedList.addEventListener("click", handleFixedAction);
 
 /**
  * カテゴリを追加する。
@@ -1667,7 +2119,7 @@ backupFileInput.addEventListener("change", async () => {
     const parsedBackup = JSON.parse(await file.text());
     const restoredData = validateBackup(parsedBackup);
     const shouldRestore = window.confirm(
-      `カテゴリ${restoredData.categories.length}件、収支${restoredData.transactions.length}件で現在のデータを置き換えますか？`,
+      `カテゴリ${restoredData.categories.length}件、収支${restoredData.transactions.length}件、固定収支${restoredData.fixedTransactions.length}件で現在のデータを置き換えますか？`,
     );
 
     if (!shouldRestore) {
@@ -1677,7 +2129,7 @@ backupFileInput.addEventListener("change", async () => {
 
     restoreBackup(restoredData);
     backupMessage.textContent =
-      `カテゴリ${categories.length}件、収支${transactions.length}件を復元しました。`;
+      `カテゴリ${categories.length}件、収支${transactions.length}件、固定収支${fixedTransactions.length}件を復元しました。`;
   } catch (error) {
     console.error("バックアップの復元に失敗しました。", error);
     backupMessage.textContent = error instanceof SyntaxError
@@ -1810,5 +2262,8 @@ transactionForm.addEventListener("submit", (event) => {
  * 初期表示。
  */
 setToday();
+initializeFixedDayOptions();
+resetFixedForm();
 renderCategories();
+renderFixedTransactions();
 setSelectedMonth(getCurrentMonth());

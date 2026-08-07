@@ -9,8 +9,8 @@
 
     <title>家計簿</title>
 
-    <link rel="stylesheet" href="./style.css?v=20260808-10" />
-    <script src="./app.js?v=20260808-10" defer></script>
+    <link rel="stylesheet" href="./style.css?v=20260808-11" />
+    <script src="./app.js?v=20260808-11" defer></script>
   </head>
 
   <body>
@@ -314,6 +314,32 @@
 
           <p id="fixed-message" class="form-message" aria-live="polite"></p>
         </form>
+
+        <section class="card fixed-generation">
+          <h3>履歴へ反映</h3>
+          <p>
+            対象月に該当する有効な固定収支を、履歴へ一度だけ登録します。
+          </p>
+
+          <div class="fixed-generation-control">
+            <label for="fixed-generation-month">対象月</label>
+            <input id="fixed-generation-month" type="month" />
+          </div>
+
+          <button
+            id="fixed-generation-button"
+            class="primary-button"
+            type="button"
+          >
+            この月の固定収支を反映
+          </button>
+
+          <p
+            id="fixed-generation-message"
+            class="form-message"
+            aria-live="polite"
+          ></p>
+        </section>
 
         <div id="fixed-list" class="fixed-list"></div>
       </section>

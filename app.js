@@ -119,6 +119,16 @@ const summaryMonthInput = document.getElementById("summary-month");
 const monthlyIncomeElement = document.getElementById("monthly-income");
 const monthlyExpenseElement = document.getElementById("monthly-expense");
 const monthlyBalanceElement = document.getElementById("monthly-balance");
+const expenseChartContent = document.getElementById(
+  "expense-chart-content",
+);
+const expenseChart = document.getElementById("expense-chart");
+const expenseChartLegend = document.getElementById(
+  "expense-chart-legend",
+);
+const expenseChartEmpty = document.getElementById(
+  "expense-chart-empty",
+);
 
 const submitButton = document.getElementById("submit-button");
 const cancelEditButton = document.getElementById(
@@ -514,6 +524,7 @@ function setSelectedMonth(month) {
   renderCalendar();
   renderHistory();
   renderMonthlySummary();
+  renderExpenseChart();
 }
 
 /**
@@ -751,6 +762,141 @@ function renderMonthlySummary() {
 }
 
 /**
+ * 選択月の支出をカテゴリ別に集計して円グラフを表示する。
+ */
+function renderExpenseChart() {
+  const expenseTotals = new Map();
+
+  getTransactionsForSelectedMonth()
+    .filter((transaction) => {
+      return transaction.type === "expense";
+    })
+    .forEach((transaction) => {
+      const currentTotal =
+        expenseTotals.get(transaction.categoryId) ?? 0;
+
+      expenseTotals.set(
+        transaction.categoryId,
+        currentTotal + transaction.amount,
+      );
+    });
+
+  const chartData = [...expenseTotals.entries()]
+    .map(([categoryId, amount]) => ({
+      categoryId,
+      name: getCategoryName(categoryId),
+      amount,
+    }))
+    .sort((first, second) => second.amount - first.amount);
+
+  expenseChart.replaceChildren();
+  expenseChartLegend.replaceChildren();
+
+  if (chartData.length === 0) {
+    expenseChartContent.classList.add("hidden");
+    expenseChartEmpty.classList.remove("hidden");
+    expenseChartEmpty.textContent =
+      `${formatMonth(selectedMonth)}の支出データはありません。`;
+    return;
+  }
+
+  expenseChartContent.classList.remove("hidden");
+  expenseChartEmpty.classList.add("hidden");
+
+  const totalExpense = chartData.reduce((total, item) => {
+    return total + item.amount;
+  }, 0);
+  const chartColors = [
+    "#17365d",
+    "#a32121",
+    "#5d6b3c",
+    "#8a5a25",
+    "#5b4778",
+    "#28706b",
+    "#6b5b4b",
+    "#395f8c",
+    "#9a6a6a",
+    "#777777",
+  ];
+  const svgNamespace = "http://www.w3.org/2000/svg";
+  const backgroundCircle = document.createElementNS(
+    svgNamespace,
+    "circle",
+  );
+
+  backgroundCircle.setAttribute("class", "pie-chart-background");
+  backgroundCircle.setAttribute("cx", "110");
+  backgroundCircle.setAttribute("cy", "110");
+  backgroundCircle.setAttribute("r", "72");
+  expenseChart.appendChild(backgroundCircle);
+
+  let cumulativePercentage = 0;
+
+  chartData.forEach((item, index) => {
+    const percentage = (item.amount / totalExpense) * 100;
+    const color = chartColors[index % chartColors.length];
+    const segment = document.createElementNS(svgNamespace, "circle");
+
+    segment.setAttribute("class", "pie-chart-segment");
+    segment.setAttribute("cx", "110");
+    segment.setAttribute("cy", "110");
+    segment.setAttribute("r", "72");
+    segment.setAttribute("pathLength", "100");
+    segment.setAttribute(
+      "stroke-dasharray",
+      `${percentage} ${100 - percentage}`,
+    );
+    segment.setAttribute(
+      "stroke-dashoffset",
+      String(-cumulativePercentage),
+    );
+    segment.setAttribute("stroke", color);
+    expenseChart.appendChild(segment);
+
+    const legendItem = document.createElement("li");
+    const legendLabel = document.createElement("span");
+    const colorMarker = document.createElement("span");
+    const categoryName = document.createElement("span");
+    const categoryAmount = document.createElement("strong");
+
+    legendLabel.className = "chart-legend-label";
+    colorMarker.className = "chart-color-marker";
+    colorMarker.style.backgroundColor = color;
+    categoryName.textContent = item.name;
+    categoryAmount.textContent = `${formatAmount(item.amount)}円（${Math.round(
+      percentage,
+    )}%）`;
+
+    legendLabel.append(colorMarker, categoryName);
+    legendItem.append(legendLabel, categoryAmount);
+    expenseChartLegend.appendChild(legendItem);
+
+    cumulativePercentage += percentage;
+  });
+
+  const totalLabel = document.createElementNS(svgNamespace, "text");
+  const totalAmount = document.createElementNS(svgNamespace, "text");
+
+  totalLabel.setAttribute("class", "pie-chart-total-label");
+  totalLabel.setAttribute("x", "110");
+  totalLabel.setAttribute("y", "103");
+  totalLabel.textContent = "支出合計";
+
+  totalAmount.setAttribute("class", "pie-chart-total-amount");
+  totalAmount.setAttribute("x", "110");
+  totalAmount.setAttribute("y", "126");
+  totalAmount.textContent = `${formatAmount(totalExpense)}円`;
+
+  expenseChart.append(totalLabel, totalAmount);
+  expenseChart.setAttribute(
+    "aria-label",
+    `${formatMonth(selectedMonth)}の支出カテゴリグラフ。合計${formatAmount(
+      totalExpense,
+    )}円`,
+  );
+}
+
+/**
  * 今日の日付を日付欄へ設定する。
  */
 function setToday() {
@@ -842,6 +988,7 @@ function deleteTransaction(transactionId) {
   renderCalendar();
   renderHistory();
   renderMonthlySummary();
+  renderExpenseChart();
 
   if (editingTransactionId === transactionId) {
     resetTransactionForm();
@@ -942,6 +1089,7 @@ function handleCategoryAction(event) {
   saveCategories();
   renderCategories();
   renderHistory();
+  renderExpenseChart();
 }
 
 /**

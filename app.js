@@ -163,6 +163,14 @@ const expenseCategoryList = document.getElementById(
   "expense-category-list",
 );
 const incomeCategoryList = document.getElementById("income-category-list");
+const backupExportButton = document.getElementById(
+  "backup-export-button",
+);
+const backupImportButton = document.getElementById(
+  "backup-import-button",
+);
+const backupFileInput = document.getElementById("backup-file-input");
+const backupMessage = document.getElementById("backup-message");
 
 let categories = loadCategories();
 let transactions = loadTransactions();
@@ -280,6 +288,212 @@ function saveTransactions() {
     TRANSACTION_STORAGE_KEY,
     JSON.stringify(transactions),
   );
+}
+
+/**
+ * 現在のデータをJSONファイルとして保存する。
+ */
+function exportBackup() {
+  const backup = {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    categories,
+    transactions,
+  };
+  const json = JSON.stringify(backup, null, 2);
+  const blob = new Blob([json], {
+    type: "application/json;charset=utf-8",
+  });
+  const downloadUrl = URL.createObjectURL(blob);
+  const downloadLink = document.createElement("a");
+  const today = new Date();
+  const date = [
+    today.getFullYear(),
+    String(today.getMonth() + 1).padStart(2, "0"),
+    String(today.getDate()).padStart(2, "0"),
+  ].join("-");
+
+  downloadLink.href = downloadUrl;
+  downloadLink.download = `kakeibo-backup-${date}.json`;
+  document.body.appendChild(downloadLink);
+  downloadLink.click();
+  downloadLink.remove();
+
+  window.setTimeout(() => {
+    URL.revokeObjectURL(downloadUrl);
+  }, 1000);
+
+  backupMessage.textContent =
+    `カテゴリ${categories.length}件、収支${transactions.length}件を保存しました。`;
+}
+
+function isValidDateString(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return false;
+  }
+
+  const [year, month, day] = value.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+
+  return (
+    date.getFullYear() === year &&
+    date.getMonth() === month - 1 &&
+    date.getDate() === day
+  );
+}
+
+/**
+ * 復元データを検証し、アプリで使用する形式に整える。
+ */
+function validateBackup(data) {
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    throw new Error("バックアップの形式が正しくありません。");
+  }
+
+  if (data.version !== 1) {
+    throw new Error("対応していないバックアップ形式です。");
+  }
+
+  if (
+    typeof data.exportedAt !== "string" ||
+    !Number.isFinite(Date.parse(data.exportedAt))
+  ) {
+    throw new Error("バックアップの作成日時が正しくありません。");
+  }
+
+  if (!Array.isArray(data.categories) || !Array.isArray(data.transactions)) {
+    throw new Error("カテゴリまたは収支記録が見つかりません。");
+  }
+
+  const categoryIds = new Set();
+  const categoryNames = new Set();
+  const restoredCategories = data.categories.map((category) => {
+    const normalizedName =
+      typeof category?.name === "string" ? category.name.trim() : "";
+    const categoryNameKey = `${category?.type}:${normalizedName}`;
+    const isValid =
+      category &&
+      typeof category === "object" &&
+      typeof category.id === "string" &&
+      category.id.trim().length > 0 &&
+      normalizedName.length > 0 &&
+      normalizedName.length <= 30 &&
+      (category.type === "expense" || category.type === "income") &&
+      typeof category.active === "boolean";
+
+    if (
+      !isValid ||
+      categoryIds.has(category.id) ||
+      categoryNames.has(categoryNameKey)
+    ) {
+      throw new Error("カテゴリデータが破損しています。");
+    }
+
+    categoryIds.add(category.id);
+    categoryNames.add(categoryNameKey);
+
+    return {
+      id: category.id,
+      name: normalizedName,
+      type: category.type,
+      active: category.active,
+    };
+  });
+
+  const categoriesById = new Map(
+    restoredCategories.map((category) => [category.id, category]),
+  );
+  const transactionIds = new Set();
+  const restoredTransactions = data.transactions.map((transaction) => {
+    const relatedCategory = categoriesById.get(transaction?.categoryId);
+    const isValid =
+      transaction &&
+      typeof transaction === "object" &&
+      typeof transaction.id === "string" &&
+      transaction.id.trim().length > 0 &&
+      isValidDateString(transaction.date) &&
+      (transaction.type === "expense" ||
+        transaction.type === "income") &&
+      typeof transaction.categoryId === "string" &&
+      relatedCategory?.type === transaction.type &&
+      (typeof transaction.name === "string" ||
+        typeof transaction.name === "undefined") &&
+      (transaction.name?.length ?? 0) <= 50 &&
+      Number.isInteger(transaction.amount) &&
+      transaction.amount > 0 &&
+      typeof transaction.createdAt === "string" &&
+      Number.isFinite(Date.parse(transaction.createdAt));
+
+    if (!isValid || transactionIds.has(transaction.id)) {
+      throw new Error("収支記録が破損しています。");
+    }
+
+    transactionIds.add(transaction.id);
+
+    return {
+      id: transaction.id,
+      date: transaction.date,
+      type: transaction.type,
+      categoryId: transaction.categoryId,
+      name: transaction.name ?? "",
+      amount: transaction.amount,
+      createdAt: transaction.createdAt,
+      ...(typeof transaction.updatedAt === "string"
+        ? { updatedAt: transaction.updatedAt }
+        : {}),
+    };
+  });
+
+  return {
+    categories: restoredCategories,
+    transactions: restoredTransactions,
+  };
+}
+
+/**
+ * 検証済みバックアップで現在のデータを置き換える。
+ */
+function restoreBackup(restoredData) {
+  const previousCategories = localStorage.getItem(CATEGORY_STORAGE_KEY);
+  const previousTransactions = localStorage.getItem(
+    TRANSACTION_STORAGE_KEY,
+  );
+
+  try {
+    localStorage.setItem(
+      CATEGORY_STORAGE_KEY,
+      JSON.stringify(restoredData.categories),
+    );
+    localStorage.setItem(
+      TRANSACTION_STORAGE_KEY,
+      JSON.stringify(restoredData.transactions),
+    );
+  } catch (error) {
+    if (previousCategories === null) {
+      localStorage.removeItem(CATEGORY_STORAGE_KEY);
+    } else {
+      localStorage.setItem(CATEGORY_STORAGE_KEY, previousCategories);
+    }
+
+    if (previousTransactions === null) {
+      localStorage.removeItem(TRANSACTION_STORAGE_KEY);
+    } else {
+      localStorage.setItem(
+        TRANSACTION_STORAGE_KEY,
+        previousTransactions,
+      );
+    }
+
+    throw error;
+  }
+
+  categories = restoredData.categories;
+  transactions = restoredData.transactions;
+  editingTransactionId = null;
+
+  resetTransactionForm();
+  renderCategories();
+  setSelectedMonth(getCurrentMonth());
 }
 
 /**
@@ -1332,6 +1546,62 @@ expenseCategoryList.addEventListener("click", handleCategoryAction);
 incomeCategoryList.addEventListener("click", handleCategoryAction);
 
 historyList.addEventListener("click", handleHistoryAction);
+
+backupExportButton.addEventListener("click", () => {
+  backupMessage.textContent = "";
+
+  try {
+    exportBackup();
+  } catch (error) {
+    console.error("バックアップの作成に失敗しました。", error);
+    backupMessage.textContent =
+      "バックアップを作成できませんでした。";
+  }
+});
+
+backupImportButton.addEventListener("click", () => {
+  backupMessage.textContent = "";
+  backupFileInput.value = "";
+  backupFileInput.click();
+});
+
+backupFileInput.addEventListener("change", async () => {
+  const [file] = backupFileInput.files;
+
+  if (!file) {
+    return;
+  }
+
+  if (file.size > 5 * 1024 * 1024) {
+    backupMessage.textContent =
+      "ファイルが大きすぎます。5MB以下のJSONを選択してください。";
+    return;
+  }
+
+  try {
+    const parsedBackup = JSON.parse(await file.text());
+    const restoredData = validateBackup(parsedBackup);
+    const shouldRestore = window.confirm(
+      `カテゴリ${restoredData.categories.length}件、収支${restoredData.transactions.length}件で現在のデータを置き換えますか？`,
+    );
+
+    if (!shouldRestore) {
+      backupMessage.textContent = "復元をキャンセルしました。";
+      return;
+    }
+
+    restoreBackup(restoredData);
+    backupMessage.textContent =
+      `カテゴリ${categories.length}件、収支${transactions.length}件を復元しました。`;
+  } catch (error) {
+    console.error("バックアップの復元に失敗しました。", error);
+    backupMessage.textContent = error instanceof SyntaxError
+      ? "JSONファイルを読み込めませんでした。"
+      : error.message || "バックアップを復元できませんでした。";
+  } finally {
+    backupFileInput.value = "";
+  }
+});
 
 cancelEditButton.addEventListener("click", () => {
   resetTransactionForm();

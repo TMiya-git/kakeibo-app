@@ -696,6 +696,22 @@ input::placeholder {
   margin-top: 18px;
 }
 
+.backup-settings button:not(:disabled) {
+  cursor: pointer;
+}
+
+.backup-settings button:not(:disabled):active {
+  background-color: #dddddd;
+}
+
+.backup-message {
+  min-height: 20px;
+  margin: 10px 0 0;
+  color: #17365d;
+  font-size: 13px;
+  font-weight: 700;
+}
+
 /* =========================
    History
 ========================= */

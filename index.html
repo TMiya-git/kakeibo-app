@@ -9,8 +9,8 @@
 
     <title>家計簿</title>
 
-    <link rel="stylesheet" href="./style.css?v=20260808-7" />
-    <script src="./app.js?v=20260808-7" defer></script>
+    <link rel="stylesheet" href="./style.css?v=20260808-8" />
+    <script src="./app.js?v=20260808-8" defer></script>
   </head>
 
   <body>
@@ -299,14 +299,24 @@
         </section>
 
         <div class="card settings-list backup-settings">
-          <button type="button" disabled>JSONバックアップ</button>
-          <button type="button" disabled>バックアップから復元</button>
+          <button id="backup-export-button" type="button">
+            JSONバックアップ
+          </button>
+          <button id="backup-import-button" type="button">
+            バックアップから復元
+          </button>
+          <input
+            id="backup-file-input"
+            class="hidden"
+            type="file"
+            accept="application/json,.json"
+          />
           <button type="button" disabled>CSV出力</button>
         </div>
 
-        <p class="note">
-          バックアップ機能は後の段階で追加します。
-        </p>
+        <p id="backup-message" class="backup-message" aria-live="polite"></p>
+
+        <p class="note">復元すると現在のカテゴリと収支記録を置き換えます。</p>
       </section>
     </main>
 

@@ -372,8 +372,124 @@ input::placeholder {
   text-align: center;
 }
 
-.summary-next-feature {
-  margin-top: 0;
+.yearly-chart-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding-bottom: 7px;
+  border-bottom: 3px double #333333;
+}
+
+.chart-card .yearly-chart-heading h3 {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.yearly-chart-heading label {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.yearly-chart-heading select {
+  width: auto;
+  min-height: 36px;
+  padding: 5px 26px 5px 8px;
+  font-size: 14px;
+}
+
+.yearly-chart-legend {
+  display: flex;
+  justify-content: flex-end;
+  gap: 14px;
+  margin-bottom: 10px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.yearly-chart-legend span {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.yearly-chart-legend i {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 1px solid #333333;
+}
+
+.yearly-chart-legend .income,
+.yearly-bar.income {
+  background-color: #42a85f;
+}
+
+.yearly-chart-legend .expense,
+.yearly-bar.expense {
+  background-color: #df5b5b;
+}
+
+.yearly-chart-scroll {
+  overflow-x: auto;
+  padding: 12px 4px 4px;
+  border: 1px solid #777777;
+  background:
+    repeating-linear-gradient(
+      to top,
+      transparent,
+      transparent 49px,
+      #dddddd 49px,
+      #dddddd 50px
+    ),
+    #ffffff;
+  -webkit-overflow-scrolling: touch;
+}
+
+.yearly-chart-scroll:focus {
+  outline: 2px solid #17365d;
+  outline-offset: 2px;
+}
+
+.yearly-chart {
+  display: grid;
+  min-width: 720px;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 8px;
+}
+
+.yearly-month {
+  display: grid;
+  gap: 6px;
+  text-align: center;
+}
+
+.yearly-bars {
+  display: flex;
+  height: 200px;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 3px;
+  border-bottom: 2px solid #333333;
+}
+
+.yearly-bar {
+  width: 18px;
+  min-height: 0;
+  border: 1px solid #333333;
+  border-bottom: 0;
+}
+
+.yearly-month-label {
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 /* =========================

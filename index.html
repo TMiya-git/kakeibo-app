@@ -9,8 +9,8 @@
 
     <title>家計簿</title>
 
-    <link rel="stylesheet" href="./style.css?v=20260808-1" />
-    <script src="./app.js?v=20260808-1" defer></script>
+    <link rel="stylesheet" href="./style.css?v=20260808-2" />
+    <script src="./app.js?v=20260808-2" defer></script>
   </head>
 
   <body>
@@ -121,9 +121,8 @@
           <input id="history-month" type="month" />
         </div>
 
-        <!-- 月間カレンダー -->
         <div class="calendar">
-          <div class="calendar-weekdays">
+          <div class="calendar-weekdays" aria-hidden="true">
             <div>日</div>
             <div>月</div>
             <div>火</div>
@@ -136,7 +135,6 @@
           <div id="calendar-grid" class="calendar-grid"></div>
         </div>
 
-        <!-- 従来の履歴一覧 -->
         <div id="history-list" class="history-list"></div>
       </section>
 

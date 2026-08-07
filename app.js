@@ -116,9 +116,9 @@ const calendarGrid = document.getElementById("calendar-grid");
 
 const historyMonthInput = document.getElementById("history-month");
 const summaryMonthInput = document.getElementById("summary-month");
-const monthlyIncome = document.getElementById("monthly-income");
-const monthlyExpense = document.getElementById("monthly-expense");
-const monthlyBalance = document.getElementById("monthly-balance");
+const monthlyIncomeElement = document.getElementById("monthly-income");
+const monthlyExpenseElement = document.getElementById("monthly-expense");
+const monthlyBalanceElement = document.getElementById("monthly-balance");
 
 const submitButton = document.getElementById("submit-button");
 const cancelEditButton = document.getElementById(
@@ -142,6 +142,7 @@ const incomeCategoryList = document.getElementById("income-category-list");
 let categories = loadCategories();
 let transactions = loadTransactions();
 let editingTransactionId = null;
+let selectedMonth = "";
 
 /**
  * 初期カテゴリを複製する。
@@ -461,99 +462,125 @@ function formatAmount(amount) {
 }
 
 /**
- * 指定月に含まれる収支記録を取得する。
+ * 現在の年月をYYYY-MM形式で取得する。
  */
-function getTransactionsByMonth(month) {
-  if (!/^\d{4}-\d{2}$/.test(month)) {
-    return [];
+function getCurrentMonth() {
+  const today = new Date();
+
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(
+    2,
+    "0",
+  );
+
+  return `${year}-${month}`;
+}
+
+/**
+ * YYYY-MMを日本語の年月へ変換する。
+ */
+function formatMonth(monthString) {
+  const [year, month] = monthString.split("-");
+
+  if (!year || !month) {
+    return monthString;
   }
 
+  return `${Number(year)}年${Number(month)}月`;
+}
+
+/**
+ * 選択月に含まれる収支だけ取得する。
+ */
+function getTransactionsForSelectedMonth() {
   return transactions.filter((transaction) => {
-    return transaction.date.startsWith(`${month}-`);
+    return transaction.date.slice(0, 7) === selectedMonth;
   });
 }
 
 /**
- * 月間カレンダーを更新する。
+ * 対象月を変更し、履歴と集計を更新する。
+ */
+function setSelectedMonth(month) {
+  const validMonth = /^\d{4}-\d{2}$/.test(month)
+    ? month
+    : getCurrentMonth();
+
+  selectedMonth = validMonth;
+
+  historyMonthInput.value = selectedMonth;
+  summaryMonthInput.value = selectedMonth;
+
+  renderCalendar();
+  renderHistory();
+  renderMonthlySummary();
+}
+
+/**
+ * 選択月の日別収入・支出をカレンダーに表示する。
  */
 function renderCalendar() {
   calendarGrid.replaceChildren();
 
-  const selectedMonth = historyMonthInput.value;
-
-  if (!/^\d{4}-\d{2}$/.test(selectedMonth)) {
-    return;
-  }
-
   const [year, month] = selectedMonth.split("-").map(Number);
   const firstWeekday = new Date(year, month - 1, 1).getDay();
   const daysInMonth = new Date(year, month, 0).getDate();
-  const monthTransactions = getTransactionsByMonth(selectedMonth);
+  const monthlyTransactions = getTransactionsForSelectedMonth();
+  const dailyTotals = new Map();
+
+  monthlyTransactions.forEach((transaction) => {
+    const day = Number(transaction.date.slice(8, 10));
+    const totals = dailyTotals.get(day) ?? {
+      income: 0,
+      expense: 0,
+    };
+
+    totals[transaction.type] += transaction.amount;
+    dailyTotals.set(day, totals);
+  });
 
   for (let index = 0; index < firstWeekday; index += 1) {
-    const blankCell = document.createElement("div");
-    blankCell.className = "calendar-day calendar-day-empty";
-    blankCell.setAttribute("aria-hidden", "true");
-    calendarGrid.appendChild(blankCell);
+    const emptyCell = document.createElement("div");
+    emptyCell.className = "calendar-day calendar-day-empty";
+    emptyCell.setAttribute("aria-hidden", "true");
+    calendarGrid.appendChild(emptyCell);
   }
 
   for (let day = 1; day <= daysInMonth; day += 1) {
-    const date = `${selectedMonth}-${String(day).padStart(2, "0")}`;
-    const dailyTransactions = monthTransactions.filter((transaction) => {
-      return transaction.date === date;
-    });
-    const income = dailyTransactions
-      .filter((transaction) => transaction.type === "income")
-      .reduce((total, transaction) => total + transaction.amount, 0);
-    const expense = dailyTransactions
-      .filter((transaction) => transaction.type === "expense")
-      .reduce((total, transaction) => total + transaction.amount, 0);
-
+    const totals = dailyTotals.get(day) ?? {
+      income: 0,
+      expense: 0,
+    };
     const dayCell = document.createElement("div");
     dayCell.className = "calendar-day";
+    dayCell.setAttribute(
+      "aria-label",
+      `${day}日、収入${formatAmount(totals.income)}円、支出${formatAmount(
+        totals.expense,
+      )}円`,
+    );
 
     const dayNumber = document.createElement("span");
     dayNumber.className = "calendar-day-number";
     dayNumber.textContent = day;
     dayCell.appendChild(dayNumber);
 
-    if (income > 0) {
+    if (totals.income > 0) {
       const incomeElement = document.createElement("span");
       incomeElement.className = "calendar-amount income";
-      incomeElement.textContent = `+${formatAmount(income)}`;
+      incomeElement.textContent = `+${formatAmount(totals.income)}`;
       dayCell.appendChild(incomeElement);
     }
 
-    if (expense > 0) {
+    if (totals.expense > 0) {
       const expenseElement = document.createElement("span");
       expenseElement.className = "calendar-amount expense";
-      expenseElement.textContent = `-${formatAmount(expense)}`;
+      expenseElement.textContent = `-${formatAmount(totals.expense)}`;
       dayCell.appendChild(expenseElement);
     }
 
     calendarGrid.appendChild(dayCell);
   }
-}
-
-/**
- * 選択月の月間収支を更新する。
- */
-function renderSummary() {
-  const monthTransactions = getTransactionsByMonth(summaryMonthInput.value);
-  const income = monthTransactions
-    .filter((transaction) => transaction.type === "income")
-    .reduce((total, transaction) => total + transaction.amount, 0);
-  const expense = monthTransactions
-    .filter((transaction) => transaction.type === "expense")
-    .reduce((total, transaction) => total + transaction.amount, 0);
-  const balance = income - expense;
-
-  monthlyIncome.textContent = `${formatAmount(income)}円`;
-  monthlyExpense.textContent = `${formatAmount(expense)}円`;
-  monthlyBalance.textContent = `${balance < 0 ? "-" : ""}${formatAmount(
-    Math.abs(balance),
-  )}円`;
-  monthlyBalance.classList.toggle("negative", balance < 0);
 }
 
 /**
@@ -641,50 +668,86 @@ function createHistoryItem(transaction) {
 function renderHistory() {
   historyList.replaceChildren();
 
-  const monthTransactions = getTransactionsByMonth(historyMonthInput.value);
+  const monthlyTransactions =
+    getTransactionsForSelectedMonth();
 
-  if (monthTransactions.length === 0) {
+  if (monthlyTransactions.length === 0) {
     const emptyMessage = document.createElement("p");
 
     emptyMessage.className = "history-empty-message";
-    emptyMessage.textContent = "この月の収支は登録されていません。";
+    emptyMessage.textContent =
+      `${formatMonth(selectedMonth)}の収支はまだ登録されていません。`;
 
     historyList.appendChild(emptyMessage);
     return;
   }
 
-  const sortedTransactions = [...monthTransactions].sort((first, second) => {
-    const dateComparison = second.date.localeCompare(first.date);
+  const sortedTransactions = [...monthlyTransactions].sort(
+    (first, second) => {
+      const dateComparison = second.date.localeCompare(
+        first.date,
+      );
 
-    if (dateComparison !== 0) {
-      return dateComparison;
-    }
+      if (dateComparison !== 0) {
+        return dateComparison;
+      }
 
-    return second.createdAt.localeCompare(first.createdAt);
-  });
+      return second.createdAt.localeCompare(
+        first.createdAt,
+      );
+    },
+  );
 
   sortedTransactions.forEach((transaction) => {
-    historyList.appendChild(createHistoryItem(transaction));
+    historyList.appendChild(
+      createHistoryItem(transaction),
+    );
   });
 }
 
 /**
- * 履歴・集計画面の対象月を今月に設定する。
+ * 選択月の収入・支出・収支を表示する。
  */
-function setCurrentMonth() {
-  const today = new Date();
-  const currentMonth = `${today.getFullYear()}-${String(
-    today.getMonth() + 1,
-  ).padStart(2, "0")}`;
+function renderMonthlySummary() {
+  const monthlyTransactions =
+    getTransactionsForSelectedMonth();
 
-  historyMonthInput.value = currentMonth;
-  summaryMonthInput.value = currentMonth;
-}
+  const monthlyIncome = monthlyTransactions
+    .filter((transaction) => {
+      return transaction.type === "income";
+    })
+    .reduce((total, transaction) => {
+      return total + transaction.amount;
+    }, 0);
 
-function renderTransactionViews() {
-  renderCalendar();
-  renderHistory();
-  renderSummary();
+  const monthlyExpense = monthlyTransactions
+    .filter((transaction) => {
+      return transaction.type === "expense";
+    })
+    .reduce((total, transaction) => {
+      return total + transaction.amount;
+    }, 0);
+
+  const monthlyBalance =
+    monthlyIncome - monthlyExpense;
+
+  monthlyIncomeElement.textContent =
+    `${formatAmount(monthlyIncome)}円`;
+
+  monthlyExpenseElement.textContent =
+    `${formatAmount(monthlyExpense)}円`;
+
+  const balancePrefix =
+    monthlyBalance > 0
+      ? "+"
+      : monthlyBalance < 0
+        ? "-"
+        : "";
+
+  monthlyBalanceElement.textContent =
+    `${balancePrefix}${formatAmount(
+      Math.abs(monthlyBalance),
+    )}円`;
 }
 
 /**
@@ -776,7 +839,9 @@ function deleteTransaction(transactionId) {
   });
 
   saveTransactions();
-  renderTransactionViews();
+  renderCalendar();
+  renderHistory();
+  renderMonthlySummary();
 
   if (editingTransactionId === transactionId) {
     resetTransactionForm();
@@ -889,6 +954,26 @@ navButtons.forEach((button) => {
 });
 
 /**
+ * 履歴画面で対象月を変更する。
+ */
+historyMonthInput.addEventListener(
+  "change",
+  (event) => {
+    setSelectedMonth(event.target.value);
+  },
+);
+
+/**
+ * 集計画面で対象月を変更する。
+ */
+summaryMonthInput.addEventListener(
+  "change",
+  (event) => {
+    setSelectedMonth(event.target.value);
+  },
+);
+
+/**
  * 支出・収入を変更したとき、カテゴリ選択肢も変更する。
  */
 transactionTypeInputs.forEach((input) => {
@@ -941,13 +1026,6 @@ expenseCategoryList.addEventListener("click", handleCategoryAction);
 incomeCategoryList.addEventListener("click", handleCategoryAction);
 
 historyList.addEventListener("click", handleHistoryAction);
-
-historyMonthInput.addEventListener("change", () => {
-  renderCalendar();
-  renderHistory();
-});
-
-summaryMonthInput.addEventListener("change", renderSummary);
 
 cancelEditButton.addEventListener("click", () => {
   resetTransactionForm();
@@ -1037,7 +1115,9 @@ transactionForm.addEventListener("submit", (event) => {
     };
 
     saveTransactions();
-    renderTransactionViews();
+
+    setSelectedMonth(date.slice(0, 7));
+
     resetTransactionForm();
 
     formMessage.textContent = "更新しました。";
@@ -1057,7 +1137,9 @@ transactionForm.addEventListener("submit", (event) => {
   transactions.push(transaction);
 
   saveTransactions();
-  renderTransactionViews();
+
+  setSelectedMonth(date.slice(0, 7));
+
   resetTransactionForm();
 
   formMessage.textContent = "登録しました。";
@@ -1067,6 +1149,5 @@ transactionForm.addEventListener("submit", (event) => {
  * 初期表示。
  */
 setToday();
-setCurrentMonth();
 renderCategories();
-renderTransactionViews();
+setSelectedMonth(getCurrentMonth());

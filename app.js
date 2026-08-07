@@ -2402,3 +2402,11 @@ fixedGenerationMonthInput.value = getCurrentMonth();
 renderCategories();
 renderFixedTransactions();
 setSelectedMonth(getCurrentMonth());
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./service-worker.js").catch((error) => {
+      console.error("Service Workerの登録に失敗しました。", error);
+    });
+  });
+}

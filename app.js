@@ -171,6 +171,7 @@ const backupImportButton = document.getElementById(
 );
 const backupFileInput = document.getElementById("backup-file-input");
 const backupMessage = document.getElementById("backup-message");
+const csvExportButton = document.getElementById("csv-export-button");
 
 let categories = loadCategories();
 let transactions = loadTransactions();
@@ -325,6 +326,79 @@ function exportBackup() {
 
   backupMessage.textContent =
     `カテゴリ${categories.length}件、収支${transactions.length}件を保存しました。`;
+}
+
+/**
+ * CSVの1項目を安全な形式へ変換する。
+ */
+function escapeCsvValue(value, preventFormula = false) {
+  let text = String(value ?? "");
+
+  if (preventFormula && /^[\s]*[=+\-@]/.test(text)) {
+    text = `'${text}`;
+  }
+
+  if (/[",\r\n]/.test(text)) {
+    return `"${text.replace(/"/g, '""')}"`;
+  }
+
+  return text;
+}
+
+/**
+ * 全収支記録をCSVファイルとして保存する。
+ */
+function exportTransactionsCsv() {
+  if (transactions.length === 0) {
+    backupMessage.textContent =
+      "CSVへ出力する収支記録がありません。";
+    return;
+  }
+
+  const header = ["日付", "種別", "カテゴリ", "名前", "金額"];
+  const sortedTransactions = [...transactions].sort((first, second) => {
+    const dateComparison = first.date.localeCompare(second.date);
+
+    if (dateComparison !== 0) {
+      return dateComparison;
+    }
+
+    return first.createdAt.localeCompare(second.createdAt);
+  });
+  const rows = sortedTransactions.map((transaction) => {
+    return [
+      escapeCsvValue(transaction.date),
+      escapeCsvValue(transaction.type === "income" ? "収入" : "支出"),
+      escapeCsvValue(getCategoryName(transaction.categoryId), true),
+      escapeCsvValue(transaction.name, true),
+      escapeCsvValue(transaction.amount),
+    ].join(",");
+  });
+  const csv = `\uFEFF${[header.join(","), ...rows].join("\r\n")}`;
+  const blob = new Blob([csv], {
+    type: "text/csv;charset=utf-8",
+  });
+  const downloadUrl = URL.createObjectURL(blob);
+  const downloadLink = document.createElement("a");
+  const today = new Date();
+  const date = [
+    today.getFullYear(),
+    String(today.getMonth() + 1).padStart(2, "0"),
+    String(today.getDate()).padStart(2, "0"),
+  ].join("-");
+
+  downloadLink.href = downloadUrl;
+  downloadLink.download = `kakeibo-transactions-${date}.csv`;
+  document.body.appendChild(downloadLink);
+  downloadLink.click();
+  downloadLink.remove();
+
+  window.setTimeout(() => {
+    URL.revokeObjectURL(downloadUrl);
+  }, 1000);
+
+  backupMessage.textContent =
+    `収支${transactions.length}件をCSVへ出力しました。`;
 }
 
 function isValidDateString(value) {
@@ -1563,6 +1637,17 @@ backupImportButton.addEventListener("click", () => {
   backupMessage.textContent = "";
   backupFileInput.value = "";
   backupFileInput.click();
+});
+
+csvExportButton.addEventListener("click", () => {
+  backupMessage.textContent = "";
+
+  try {
+    exportTransactionsCsv();
+  } catch (error) {
+    console.error("CSVの出力に失敗しました。", error);
+    backupMessage.textContent = "CSVを出力できませんでした。";
+  }
 });
 
 backupFileInput.addEventListener("change", async () => {

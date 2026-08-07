@@ -112,6 +112,7 @@ const categorySelect = document.getElementById("category");
 const transactionNameInput = document.getElementById("transaction-name");
 const formMessage = document.getElementById("form-message");
 const historyList = document.getElementById("history-list");
+const calendarGrid = document.getElementById("calendar-grid");
 
 const historyMonthInput = document.getElementById("history-month");
 const summaryMonthInput = document.getElementById("summary-month");
@@ -510,8 +511,76 @@ function setSelectedMonth(month) {
   historyMonthInput.value = selectedMonth;
   summaryMonthInput.value = selectedMonth;
 
+  renderCalendar();
   renderHistory();
   renderMonthlySummary();
+}
+
+/**
+ * 選択月の日別収入・支出をカレンダーに表示する。
+ */
+function renderCalendar() {
+  calendarGrid.replaceChildren();
+
+  const [year, month] = selectedMonth.split("-").map(Number);
+  const firstWeekday = new Date(year, month - 1, 1).getDay();
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const monthlyTransactions = getTransactionsForSelectedMonth();
+  const dailyTotals = new Map();
+
+  monthlyTransactions.forEach((transaction) => {
+    const day = Number(transaction.date.slice(8, 10));
+    const totals = dailyTotals.get(day) ?? {
+      income: 0,
+      expense: 0,
+    };
+
+    totals[transaction.type] += transaction.amount;
+    dailyTotals.set(day, totals);
+  });
+
+  for (let index = 0; index < firstWeekday; index += 1) {
+    const emptyCell = document.createElement("div");
+    emptyCell.className = "calendar-day calendar-day-empty";
+    emptyCell.setAttribute("aria-hidden", "true");
+    calendarGrid.appendChild(emptyCell);
+  }
+
+  for (let day = 1; day <= daysInMonth; day += 1) {
+    const totals = dailyTotals.get(day) ?? {
+      income: 0,
+      expense: 0,
+    };
+    const dayCell = document.createElement("div");
+    dayCell.className = "calendar-day";
+    dayCell.setAttribute(
+      "aria-label",
+      `${day}日、収入${formatAmount(totals.income)}円、支出${formatAmount(
+        totals.expense,
+      )}円`,
+    );
+
+    const dayNumber = document.createElement("span");
+    dayNumber.className = "calendar-day-number";
+    dayNumber.textContent = day;
+    dayCell.appendChild(dayNumber);
+
+    if (totals.income > 0) {
+      const incomeElement = document.createElement("span");
+      incomeElement.className = "calendar-amount income";
+      incomeElement.textContent = `+${formatAmount(totals.income)}`;
+      dayCell.appendChild(incomeElement);
+    }
+
+    if (totals.expense > 0) {
+      const expenseElement = document.createElement("span");
+      expenseElement.className = "calendar-amount expense";
+      expenseElement.textContent = `-${formatAmount(totals.expense)}`;
+      dayCell.appendChild(expenseElement);
+    }
+
+    calendarGrid.appendChild(dayCell);
+  }
 }
 
 /**
@@ -770,6 +839,7 @@ function deleteTransaction(transactionId) {
   });
 
   saveTransactions();
+  renderCalendar();
   renderHistory();
   renderMonthlySummary();
 

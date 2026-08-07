@@ -597,6 +597,97 @@ input::placeholder {
   margin-left: auto;
 }
 
+.calendar {
+  margin-bottom: 20px;
+  overflow: hidden;
+  border: 2px solid #333333;
+  background-color: #ffffff;
+  box-shadow: 3px 3px 0 #b8b8b8;
+}
+
+.calendar-weekdays,
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.calendar-weekdays {
+  border-bottom: 2px solid #333333;
+  background-color: #dedede;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.calendar-weekdays div {
+  padding: 7px 0;
+  border-right: 1px solid #777777;
+}
+
+.calendar-weekdays div:last-child {
+  border-right: 0;
+}
+
+.calendar-day {
+  min-width: 0;
+  min-height: 72px;
+  padding: 5px 3px;
+  border-right: 1px solid #aaaaaa;
+  border-bottom: 1px solid #aaaaaa;
+}
+
+.calendar-day:nth-child(7n) {
+  border-right: 0;
+}
+
+.calendar-day-empty {
+  background: repeating-linear-gradient(
+    -45deg,
+    #eeeeee,
+    #eeeeee 3px,
+    #e5e5e5 3px,
+    #e5e5e5 6px
+  );
+}
+
+.calendar-day-number,
+.calendar-amount {
+  display: block;
+}
+
+.calendar-day-number {
+  margin-bottom: 4px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.calendar-day:nth-child(7n + 1) .calendar-day-number,
+.calendar-weekdays div:first-child {
+  color: #a32121;
+}
+
+.calendar-day:nth-child(7n) .calendar-day-number,
+.calendar-weekdays div:last-child {
+  color: #214a87;
+}
+
+.calendar-amount {
+  overflow: hidden;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.45;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.calendar-amount.income {
+  color: #17652e;
+}
+
+.calendar-amount.expense {
+  color: #a32121;
+}
+
 @media (max-width: 430px) {
   .month-control {
     display: grid;

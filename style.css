@@ -682,8 +682,14 @@ input::placeholder {
 
 .category-actions {
   display: flex;
+  align-items: center;
   flex-shrink: 0;
   gap: 5px;
+}
+
+.category-order-actions {
+  display: flex;
+  gap: 3px;
 }
 
 .category-action-button {
@@ -699,6 +705,32 @@ input::placeholder {
 
 .category-action-button:active {
   background-color: #d8dee4;
+}
+
+.category-action-button:disabled {
+  border-color: #d8dee4;
+  background-color: #ffffff;
+  color: #afb8c1;
+  cursor: default;
+}
+
+.category-order-button {
+  width: 32px;
+  padding: 4px;
+  font-size: 16px;
+  line-height: 1;
+}
+
+@media (max-width: 390px) {
+  .category-item {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .category-actions {
+    align-self: stretch;
+    justify-content: flex-end;
+  }
 }
 
 .category-empty-message {

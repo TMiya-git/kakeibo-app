@@ -828,7 +828,7 @@ function renderCategorySelect() {
 /**
  * カテゴリ一覧の1行を作成する。
  */
-function createCategoryItem(category) {
+function createCategoryItem(category, index, categoryCount) {
   const listItem = document.createElement("li");
 
   listItem.className = "category-item";
@@ -846,6 +846,32 @@ function createCategoryItem(category) {
 
   actionArea.className = "category-actions";
 
+  const orderArea = document.createElement("div");
+
+  orderArea.className = "category-order-actions";
+
+  const moveUpButton = document.createElement("button");
+
+  moveUpButton.type = "button";
+  moveUpButton.className = "category-action-button category-order-button";
+  moveUpButton.dataset.action = "move-up";
+  moveUpButton.dataset.categoryId = category.id;
+  moveUpButton.textContent = "↑";
+  moveUpButton.disabled = index === 0;
+  moveUpButton.setAttribute("aria-label", `${category.name}を上へ移動`);
+
+  const moveDownButton = document.createElement("button");
+
+  moveDownButton.type = "button";
+  moveDownButton.className = "category-action-button category-order-button";
+  moveDownButton.dataset.action = "move-down";
+  moveDownButton.dataset.categoryId = category.id;
+  moveDownButton.textContent = "↓";
+  moveDownButton.disabled = index === categoryCount - 1;
+  moveDownButton.setAttribute("aria-label", `${category.name}を下へ移動`);
+
+  orderArea.append(moveUpButton, moveDownButton);
+
   const renameButton = document.createElement("button");
 
   renameButton.type = "button";
@@ -862,7 +888,7 @@ function createCategoryItem(category) {
   activeButton.dataset.categoryId = category.id;
   activeButton.textContent = category.active ? "非表示" : "再表示";
 
-  actionArea.append(renameButton, activeButton);
+  actionArea.append(orderArea, renameButton, activeButton);
   listItem.append(categoryName, actionArea);
 
   return listItem;
@@ -888,9 +914,47 @@ function renderCategoryList(type, listElement) {
     return;
   }
 
-  filteredCategories.forEach((category) => {
-    listElement.appendChild(createCategoryItem(category));
+  filteredCategories.forEach((category, index) => {
+    listElement.appendChild(
+      createCategoryItem(category, index, filteredCategories.length),
+    );
   });
+}
+
+/**
+ * 同じ種類のカテゴリ内で表示順を1つ移動する。
+ */
+function moveCategory(categoryId, direction) {
+  const currentIndex = categories.findIndex((category) => {
+    return category.id === categoryId;
+  });
+
+  if (currentIndex === -1) {
+    return false;
+  }
+
+  const category = categories[currentIndex];
+  const step = direction === "up" ? -1 : 1;
+  let adjacentIndex = currentIndex + step;
+
+  while (
+    adjacentIndex >= 0 &&
+    adjacentIndex < categories.length &&
+    categories[adjacentIndex].type !== category.type
+  ) {
+    adjacentIndex += step;
+  }
+
+  if (adjacentIndex < 0 || adjacentIndex >= categories.length) {
+    return false;
+  }
+
+  [categories[currentIndex], categories[adjacentIndex]] = [
+    categories[adjacentIndex],
+    categories[currentIndex],
+  ];
+
+  return true;
 }
 
 /**
@@ -1940,7 +2004,22 @@ function handleCategoryAction(event) {
     return;
   }
 
-  if (actionButton.dataset.action === "rename") {
+  const action = actionButton.dataset.action;
+
+  if (action === "move-up" || action === "move-down") {
+    const moved = moveCategory(
+      category.id,
+      action === "move-up" ? "up" : "down",
+    );
+
+    if (!moved) {
+      return;
+    }
+
+    categoryMessage.textContent = "カテゴリの順番を変更しました。";
+  }
+
+  if (action === "rename") {
     const newName = window.prompt(
       "新しいカテゴリ名を入力してください。",
       category.name,
@@ -1965,7 +2044,7 @@ function handleCategoryAction(event) {
     category.name = trimmedName;
   }
 
-  if (actionButton.dataset.action === "toggle") {
+  if (action === "toggle") {
     category.active = !category.active;
   }
 

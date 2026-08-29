@@ -1,8 +1,8 @@
-const CACHE_NAME = "kakeibo-static-v2";
+const CACHE_NAME = "kakeibo-static-v3";
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./style.css?v=20260808-13",
+  "./style.css?v=20260829-14",
   "./app.js?v=20260808-13",
   "./manifest.webmanifest",
   "./assets/icons/icon-180.png",
